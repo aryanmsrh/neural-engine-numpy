@@ -142,21 +142,22 @@ Because non-symmetrical activation functions like ReLU zero out all negative pre
 
 For layer $l \in \{1, \dots, L\}$:
 
-#### Affine Step:
+#### Affine Step
 
 $$
 Z^{[l]} = W^{[l]} A^{[l-1]} + B^{[l]}
 $$
 
-where $W^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$, $A^{[L-1]} \in \mathbb{R}^{n_{l-1} \times m}$, and $B^{[l]} \in \mathbb{R}^{n_l \times 1}$.
+where $W^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$, $A^{[l-1]} \in \mathbb{R}^{n_{l-1} \times m}$, and $B^{[l]} \in \mathbb{R}^{n_l \times 1}$.
 
-#### Hidden Layer Activation (ReLU):
+#### Hidden Layer Activation (ReLU)
 
 $$
 A^{[l]} = g(Z^{[l]}) = \max(0, \, Z^{[l]})
 $$
 
-#### Output Layer Activation (Softmax):
+#### Output Layer Activation (Softmax)
+
 To prevent exponential overflow, subtract $\max(Z^{(i)})$ along the class dimension:
 
 $$
@@ -195,43 +196,38 @@ $$
 \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \sum_{k=1}^{n_L} \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} \frac{\partial a_k^{[L](i)}}{\partial z_j^{[L](i)}}
 $$
 
-**1. Derivative of Loss w.r.t. Activation:**
+##### 1. Derivative of Loss w.r.t. Activation
 
 $$
 \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} = -\frac{y_k^{(i)}}{a_k^{[L](i)}}
 $$
 
-**2. Softmax Jacobian Matrix (Quotient Rule):**
+##### 2. Softmax Jacobian Matrix (Quotient Rule)
+
 Using $a_k = \frac{e^{z_k}}{S}$ where $S = \sum_{r} e^{z_r}$:
 
-- **Direct Path ($k = j$):**
+Direct Path ($k = j$):
 
 $$
 \frac{\partial a_j}{\partial z_j} = \frac{e^{z_j} S - e^{z_j} e^{z_j}}{S^2} = a_j (1 - a_j)
 $$
 
-- **Indirect Path ($k \neq j$):**
+Indirect Path ($k \neq j$):
 
 $$
 \frac{\partial a_k}{\partial z_j} = \frac{0 \cdot S - e^{z_k} e^{z_j}}{S^2} = -a_k a_j
 $$
 
-**3. Expanding and Collapsing the Chain Rule Sum:**
+##### 3. Expanding and Collapsing the Chain Rule Sum
 
 $$
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right)
-$$
-
-$$
-= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)}
-$$
-
-$$
-= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)}
-$$
-
-$$
-= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right)
+\begin{aligned}
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} &= \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right) \\
+&= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)} \\
+&= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)} \\
+&= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right) \\
+&= -y_j^{(i)} + a_j^{[L](i)} \left( \sum_{k=1}^{n_L} y_k^{(i)} \right)
+\end{aligned}
 $$
 
 Because $Y$ is a one-hot distribution ($\sum_{k=1}^{n_L} y_k^{(i)} = 1$):
