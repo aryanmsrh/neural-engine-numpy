@@ -1,21 +1,19 @@
 # 🧠 Neural Engine NumPy
 
-<div align="center">
-
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-Pure%20Matrix%20Math-013243?style=for-the-badge&logo=numpy&logoColor=white)
 ![Frameworks](https://img.shields.io/badge/Frameworks-Zero%20(Pure%20First%20Principles)-red?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-*A high-performance, modular deep learning framework built from first principles using pure Python and NumPy—no PyTorch, no TensorFlow, no Autograd.*
+A lightweight, modular deep learning framework built from first principles using pure Python and NumPy—no PyTorch, no TensorFlow, no Autograd.
 
 ---
 
 ### 📹 Watch the Complete Math & Code Walkthrough
-[![YouTube Video](https://img.youtube.com/vi/KnZg2GKFDcQ/maxresdefault.jpg)](https://youtu.be/KnZg2GKFDcQ)
-*Click the banner above to watch the full step-by-step mathematical derivation and code walkthrough video.*
 
-</div>
+[![YouTube Video](https://img.youtube.com/vi/KnZg2GKFDcQ/maxresdefault.jpg)](https://youtu.be/KnZg2GKFDcQ)
+
+*Click the banner above to watch the full step-by-step mathematical derivation and code walkthrough video on YouTube.*
 
 ---
 
@@ -26,25 +24,25 @@
 - [Architecture & Neural Pipeline](#-architecture--neural-pipeline)
 - [Comprehensive Mathematical Foundations](#-comprehensive-mathematical-foundations)
   - [1. Matrix Notation & Tensor Shape Invariants](#1-matrix-notation--tensor-shape-invariants)
-  - [2. He (Kaiming) Weight Initialization Derivation](#2-he-kaiming-weight-initialization-derivation)
+  - [2. He (Kaiming) Weight Initialization](#2-he-kaiming-weight-initialization)
   - [3. Forward Propagation Equations](#3-forward-propagation-equations)
   - [4. Categorical Cross-Entropy Loss](#4-categorical-cross-entropy-loss)
-  - [5. Analytical Backpropagation Proof (Step-by-Step)](#5-analytical-backpropagation-proof-step-by-step)
-    - [Step 5.1: Fused Softmax + Cross-Entropy Loss Gradient ($dZ^{[L]}$)](#step-51-fused-softmax--cross-entropy-loss-gradient-dzl)
-    - [Step 5.2: Layer $L$ Parameter Gradients ($dW^{[L]}, dB^{[L]}$)](#step-52-layer-l-parameter-gradients-dwl-dbl)
-    - [Step 5.3: Propagating Error to Hidden Layers ($dZ^{[l]}$)](#step-53-propagating-error-to-hidden-layers-dzl)
+  - [5. Analytical Backpropagation Proof](#5-analytical-backpropagation-proof)
+    - [Step 5.1: Fused Softmax + Cross-Entropy Loss Gradient](#step-51-fused-softmax--cross-entropy-loss-gradient)
+    - [Step 5.2: Output Layer Parameter Gradients](#step-52-output-layer-parameter-gradients)
+    - [Step 5.3: Propagating Error to Hidden Layers](#step-53-propagating-error-to-hidden-layers)
   - [6. Summary of Generalized Recursion & SGD Update](#6-summary-of-generalized-recursion--sgd-update)
 - [Codebase Structure](#-codebase-structure)
 - [Getting Started](#-getting-started)
 - [MNIST Benchmark & Training Results](#-mnist-benchmark--training-results)
-- [🔮 Future Roadmap (Planned Enhancements)](#-future-roadmap-planned-enhancements)
+- [🔮 Future Roadmap](#-future-roadmap)
 - [License](#-license)
 
 ---
 
 ## ⚡ Overview
 
-**Neural Engine NumPy** is a deep learning engine built strictly from first principles using Python and NumPy. It eliminates black-box automatic differentiation engines (like PyTorch's `autograd`) in favor of explicit analytical matrix calculus.
+**Neural Engine NumPy** is a deep learning engine built strictly from first principles using Python and NumPy. It eliminates black-box automatic differentiation engines in favor of explicit analytical matrix calculus.
 
 Every tensor operation, weight initialization, activation function, loss computation, gradient propagation, and parameter update is derived on paper and translated directly into fully vectorized NumPy matrix operations (`np.dot` / `@`).
 
@@ -54,12 +52,12 @@ Every tensor operation, weight initialization, activation function, loss computa
 
 - 🚫 **Zero External ML Libraries**: Built exclusively with Python standard library and NumPy.
 - 📐 **First-Principles Calculus**: Complete mathematical derivations using the multivariate chain rule and Softmax Jacobian matrix reductions.
-- 🚀 **Fully Vectorized (Batch-First Matrix Algebra)**: Computes transformations across $m$ training instances in parallel without Python `for` loops over batch items.
+- 🚀 **Fully Vectorized**: Computes transformations across $m$ training instances in parallel without Python `for` loops over batch items.
 - 🛡️ **Numerical Stability Guards**:
-  - Max-logit subtraction in Softmax ($Z_{\text{shifted}} = Z - \max(Z)$) to prevent exponential overflow (`inf`).
-  - Probability clipping ($\text{clip}(A, 10^{-15}, 1 - 10^{-15})$) to prevent $\ln(0)$ underflow (`NaN`).
-  - He (Kaiming) normal weight initialization to maintain constant variance across deep ReLU layers.
-- 🧱 **Clean Modular API**: Designed with object-oriented abstractions: `Dense`, `ReLU`, `SoftmaxCrossEntropy`, `SGD`, and `Sequential`.
+  - Softmax max-logit subtraction ($Z_{\text{shifted}} = Z - \max(Z)$) to prevent exponential overflow.
+  - Probability clipping ($\text{clip}(A, 10^{-15}, 1 - 10^{-15})$) to prevent $\ln(0)$ underflow.
+  - He (Kaiming) normal weight initialization tailored for ReLU activations.
+- 🧱 **Clean Modular API**: Object-oriented abstractions mimicking PyTorch: `Dense`, `ReLU`, `SoftmaxCrossEntropy`, `SGD`, and `Sequential`.
 
 ---
 
@@ -128,23 +126,15 @@ We adopt a **column-vector layout** where each column in a matrix represents a s
 
 ---
 
-### 2. He (Kaiming) Weight Initialization Derivation
+### 2. He (Kaiming) Weight Initialization
 
-Standard Xavier initialization assumes linear activations centered at 0 with variance $\text{Var}(W) = \frac{1}{n_{in}}$. However, ReLU sets all negative inputs to 0, zeroing out half of the variance:
+We use **He Normal Initialization** to set initial parameter weights:
 
-$$\text{E}[\text{ReLU}(z)^2] = \frac{1}{2} \text{Var}(z)$$
+$$
+W^{[l]} \sim \mathcal{N}\left(0, \, \sqrt{\frac{2}{n_{l-1}}}\right)
+$$
 
-For layer input $z = \sum_{k=1}^{n_{in}} w_k a_k$, under zero-mean independent variables:
-
-$$\text{Var}(z) = n_{in} \cdot \text{Var}(w) \cdot \text{E}[a^2] = n_{in} \cdot \text{Var}(w) \cdot \left( \frac{1}{2} \text{Var}(z_{prev}) \right)$$
-
-To enforce $\text{Var}(z) = \text{Var}(z_{prev}) = 1$ across arbitrarily deep networks:
-
-$$\frac{1}{2} n_{in} \cdot \text{Var}(w) = 1 \implies \mathbf{\text{Var}(W) = \frac{2}{n_{in}}}$$
-
-Thus, weights are initialized as:
-
-$$W^{[l]} \sim \mathcal{N}\left(0, \, \sqrt{\frac{2}{n_{l-1}}}\right)$$
+Because non-symmetrical activation functions like ReLU zero out all negative pre-activations (effectively killing half the signal variance), standard Xavier initialization causes signal collapse in deeper networks. He initialization scales the initial weight variance by $\sqrt{2 / n_{l-1}}$, keeping activation variances stable across all hidden layers during training.
 
 ---
 
@@ -153,17 +143,29 @@ $$W^{[l]} \sim \mathcal{N}\left(0, \, \sqrt{\frac{2}{n_{l-1}}}\right)$$
 For layer $l \in \{1, \dots, L\}$:
 
 #### Affine Step:
-$$Z^{[l]} = W^{[l]} A^{[l-1]} + B^{[l]}$$
+
+$$
+Z^{[l]} = W^{[l]} A^{[l-1]} + B^{[l]}
+$$
+
+where $W^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$, $A^{[L-1]} \in \mathbb{R}^{n_{l-1} \times m}$, and $B^{[l]} \in \mathbb{R}^{n_l \times 1}$.
 
 #### Hidden Layer Activation (ReLU):
-$$A^{[l]} = g(Z^{[l]}) = \max\left(0, \, Z^{[l]}\right)$$
+
+$$
+A^{[l]} = g(Z^{[l]}) = \max(0, \, Z^{[l]})
+$$
 
 #### Output Layer Activation (Softmax):
-To avoid numerical overflow, subtract $\max(Z^{(i)})$ along the class axis:
+To prevent exponential overflow, subtract $\max(Z^{(i)})$ along the class dimension:
 
-$$\hat{z}_j^{[L](i)} = z_j^{[L](i)} - \max_{r} z_r^{[L](i)}$$
+$$
+\hat{z}_j^{[L](i)} = z_j^{[L](i)} - \max_{r} z_r^{[L](i)}
+$$
 
-$$a_j^{[L](i)} = \frac{e^{\hat{z}_j^{[L](i)}}}{\sum_{r=1}^{n_L} e^{\hat{z}_r^{[L](i)}}}$$
+$$
+a_j^{[L](i)} = \frac{e^{\hat{z}_j^{[L](i)}}}{\sum_{r=1}^{n_L} e^{\hat{z}_r^{[L](i)}}}
+$$
 
 ---
 
@@ -171,89 +173,127 @@ $$a_j^{[L](i)} = \frac{e^{\hat{z}_j^{[L](i)}}}{\sum_{r=1}^{n_L} e^{\hat{z}_r^{[L
 
 For a single sample $(i)$ with one-hot label vector $y^{(i)}$:
 
-$$\mathcal{L}^{(i)} = -\sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)$$
+$$
+\mathcal{L}^{(i)} = -\sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)
+$$
 
-Average loss across mini-batch of size $m$:
+Average loss across a mini-batch of size $m$:
 
-$$\mathcal{L} = \frac{1}{m} \sum_{i=1}^{m} \mathcal{L}^{(i)} = -\frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)$$
+$$
+\mathcal{L} = \frac{1}{m} \sum_{i=1}^{m} \mathcal{L}^{(i)} = -\frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)
+$$
 
 ---
 
-### 5. Analytical Backpropagation Proof (Step-by-Step)
+### 5. Analytical Backpropagation Proof
 
-#### Step 5.1: Fused Softmax + Cross-Entropy Loss Gradient ($dZ^{[L]}$)
+#### Step 5.1: Fused Softmax + Cross-Entropy Loss Gradient
 
 We compute $\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}}$. Since pre-activation $z_j^{[L]}$ influences the denominator of every output activation $a_k^{[L]}$, we apply the multivariable chain rule over all output neurons $k \in \{1, \dots, n_L\}$:
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \sum_{k=1}^{n_L} \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} \frac{\partial a_k^{[L](i)}}{\partial z_j^{[L](i)}}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \sum_{k=1}^{n_L} \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} \frac{\partial a_k^{[L](i)}}{\partial z_j^{[L](i)}}
+$$
 
 **1. Derivative of Loss w.r.t. Activation:**
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} = -\frac{y_k^{(i)}}{a_k^{[L](i)}}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} = -\frac{y_k^{(i)}}{a_k^{[L](i)}}
+$$
 
 **2. Softmax Jacobian Matrix (Quotient Rule):**
 Using $a_k = \frac{e^{z_k}}{S}$ where $S = \sum_{r} e^{z_r}$:
 
 - **Direct Path ($k = j$):**
-  $$\frac{\partial a_j}{\partial z_j} = \frac{e^{z_j} S - e^{z_j} e^{z_j}}{S^2} = \frac{e^{z_j}}{S} \left(1 - \frac{e^{z_j}}{S}\right) = a_j (1 - a_j)$$
+
+$$
+\frac{\partial a_j}{\partial z_j} = \frac{e^{z_j} S - e^{z_j} e^{z_j}}{S^2} = a_j (1 - a_j)
+$$
 
 - **Indirect Path ($k \neq j$):**
-  $$\frac{\partial a_k}{\partial z_j} = \frac{0 \cdot S - e^{z_k} e^{z_j}}{S^2} = -\left(\frac{e^{z_k}}{S}\right) \left(\frac{e^{z_j}}{S}\right) = -a_k a_j$$
+
+$$
+\frac{\partial a_k}{\partial z_j} = \frac{0 \cdot S - e^{z_k} e^{z_j}}{S^2} = -a_k a_j
+$$
 
 **3. Expanding and Collapsing the Chain Rule Sum:**
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right)$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right)
+$$
 
-$$= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)}$$
+$$
+= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)}
+$$
 
-$$= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)}$$
+$$
+= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)}
+$$
 
-$$= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right)$$
-
-$$= -y_j^{(i)} + a_j^{[L](i)} \left( \sum_{k=1}^{n_L} y_k^{(i)} \right)$$
+$$
+= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right)
+$$
 
 Because $Y$ is a one-hot distribution ($\sum_{k=1}^{n_L} y_k^{(i)} = 1$):
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = a_j^{[L](i)} - y_j^{(i)}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = a_j^{[L](i)} - y_j^{(i)}
+$$
 
 Vectorized across all classes and $m$ batch samples:
 
-$$\mathbf{dZ^{[L]} = A^{[L]} - Y} \in \mathbb{R}^{n_L \times m}$$
+$$
+dZ^{[L]} = A^{[L]} - Y \in \mathbb{R}^{n_L \times m}
+$$
 
 ---
 
-#### Step 5.2: Layer $L$ Parameter Gradients ($dW^{[L]}, dB^{[L]}$)
+#### Step 5.2: Output Layer Parameter Gradients
 
 Applying the chain rule through $Z^{[L]} = W^{[L]} A^{[L-1]} + B^{[L]}$:
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial w_{jk}^{[L]}} = \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} \frac{\partial z_j^{[L](i)}}{\partial w_{jk}^{[L]}} = dZ_j^{[L](i)} a_k^{[L-1](i)}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial w_{jk}^{[L]}} = \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} \frac{\partial z_j^{[L](i)}}{\partial w_{jk}^{[L]}} = dZ_j^{[L](i)} a_k^{[L-1](i)}
+$$
 
 Averaging across mini-batch size $m$:
 
-$$\mathbf{dW^{[L]} = \frac{1}{m} dZ^{[L]} \left(A^{[L-1]}\right)^T} \in \mathbb{R}^{n_L \times n_{L-1}}$$
+$$
+dW^{[L]} = \frac{1}{m} dZ^{[L]} \left(A^{[L-1]}\right)^T \in \mathbb{R}^{n_L \times n_{L-1}}
+$$
 
-$$\mathbf{dB^{[L]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[L](i)} = \frac{1}{m} \text{np.sum}(dZ^{[L]}, \text{axis}=1, \text{keepdims}=\text{True})} \in \mathbb{R}^{n_L \times 1}$$
+$$
+dB^{[L]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[L](i)} = \frac{1}{m} \text{np.sum}(dZ^{[L]}, \text{axis}=1, \text{keepdims}=\text{True}) \in \mathbb{R}^{n_L \times 1}
+$$
 
 ---
 
-#### Step 5.3: Propagating Error to Hidden Layers ($dZ^{[l]}$)
+#### Step 5.3: Propagating Error to Hidden Layers
 
 To push gradient back from layer $l+1$ to layer $l$:
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = \sum_{j=1}^{n_{l+1}} \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} \frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} \frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = \sum_{j=1}^{n_{l+1}} \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} \frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} \frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}}
+$$
 
 Using:
 - $\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} = dZ_j^{[l+1](i)}$
 - $\frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} = W_{jk}^{[l+1]}$
 - $\frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}} = g'(z_k^{[l](i)})$
 
-$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = g'\left(z_k^{[l](i)}\right) \sum_{j=1}^{n_{l+1}} W_{jk}^{[l+1]} dZ_j^{[l+1](i)}$$
+$$
+\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = g'\left(z_k^{[l](i)}\right) \sum_{j=1}^{n_{l+1}} W_{jk}^{[l+1]} dZ_j^{[l+1](i)}
+$$
 
 Vectorizing across all hidden units and batch samples:
 
-$$\mathbf{dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]}} \in \mathbb{R}^{n_l \times m}$$
+$$
+dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]} \in \mathbb{R}^{n_l \times m}
+$$
 
-$$\mathbf{dZ^{[l]} = dA^{[l]} \odot g'\left(Z^{[l]}\right)} \in \mathbb{R}^{n_l \times m}$$
+$$
+dZ^{[l]} = dA^{[l]} \odot g'\left(Z^{[l]}\right) \in \mathbb{R}^{n_l \times m}
+$$
 
 where $\odot$ is the element-wise Hadamard product and $g'(Z) = \mathbb{I}(Z > 0)$ for ReLU.
 
@@ -263,19 +303,35 @@ where $\odot$ is the element-wise Hadamard product and $g'(Z) = \mathbb{I}(Z > 0
 
 For any layer $l \in \{1, \dots, L\}$:
 
-$$\begin{aligned}
-\mathbf{dZ^{[L]}} &= A^{[L]} - Y \quad (\text{Output layer}) \\
-\mathbf{dA^{[l]}} &= \left(W^{[l+1]}\right)^T dZ^{[l+1]} \\
-\mathbf{dZ^{[l]}} &= dA^{[l]} \odot \mathbb{I}(Z^{[l]} > 0) \quad (\text{Hidden layers } l < L) \\
-\mathbf{dW^{[l]}} &= \frac{1}{m} dZ^{[l]} \left(A^{[l-1]}\right)^T \\
-\mathbf{dB^{[l]}} &= \frac{1}{m} \sum_{i=1}^{m} dZ^{[l]}
-\end{aligned}$$
+$$
+dZ^{[L]} = A^{[L]} - Y \quad (\text{Output layer})
+$$
+
+$$
+dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]}
+$$
+
+$$
+dZ^{[l]} = dA^{[l]} \odot \mathbb{I}(Z^{[l]} > 0) \quad (\text{Hidden layers } l < L)
+$$
+
+$$
+dW^{[l]} = \frac{1}{m} dZ^{[l]} \left(A^{[l-1]}\right)^T
+$$
+
+$$
+dB^{[l]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[l]}
+$$
 
 **Stochastic Gradient Descent Parameter Update:**
 
-$$\mathbf{W^{[l]} \leftarrow W^{[l]} - \alpha \, dW^{[l]}}$$
+$$
+W^{[l]} \leftarrow W^{[l]} - \alpha \, dW^{[l]}
+$$
 
-$$\mathbf{B^{[l]} \leftarrow B^{[l]} - \alpha \, dB^{[l]}}$$
+$$
+B^{[l]} \leftarrow B^{[l]} - \alpha \, dB^{[l]}
+$$
 
 ---
 
@@ -286,6 +342,7 @@ neural-engine-numpy/
 ├── main.py                # MNIST dataset loader, pipeline setup & training loop
 ├── NEURAL ENGINE.pdf      # Detailed handwritten math derivations & notes
 ├── data.csv               # MNIST dataset CSV (60,000 samples)
+├── LICENSE                # MIT License file
 ├── AGENTS.md              # Tensor shape invariants & design rules
 └── nn/                    # Core Neural Engine Framework
     ├── __init__.py        # Package initialization & exports
@@ -364,9 +421,9 @@ Training a `784 -> 128 -> 64 -> 10` architecture with batch size `64` and learni
 
 ---
 
-## 🔮 Future Roadmap (Planned Enhancements)
+## 🔮 Future Roadmap
 
-The following modular extensions are planned for future development to expand framework capabilities:
+The following modular extensions are planned for future development:
 
 ### ⚡ Advanced Optimizers
 - [ ] **SGD with Momentum**:
@@ -374,7 +431,6 @@ The following modular extensions are planned for future development to expand fr
 - [ ] **RMSProp**:
   $$S_{dW} = \beta S_{dW} + (1-\beta) dW^2, \qquad W \leftarrow W - \alpha \frac{dW}{\sqrt{S_{dW} + \epsilon}}$$
 - [ ] **Adam (Adaptive Moment Estimation)**:
-  First ($V$) and second ($S$) moment estimates with bias corrections ($\hat{V}, \hat{S}$):
   $$W \leftarrow W - \alpha \frac{\hat{V}_{dW}}{\sqrt{\hat{S}_{dW}} + \epsilon}$$
 
 ### 🛡️ Regularization & Architectural Layers
@@ -393,9 +449,7 @@ The following modular extensions are planned for future development to expand fr
 
 ### 🔍 Verification & Diagnostic Utilities
 - [ ] **Finite-Difference Numerical Gradient Checking (`gradcheck`)**:
-  Comparing analytical gradients against numerical approximation:
   $$\frac{\partial \mathcal{L}}{\partial \theta} \approx \frac{\mathcal{L}(\theta + \epsilon) - \mathcal{L}(\theta - \epsilon)}{2\epsilon}$$
-  Ensuring relative error $\frac{\|\theta_{num} - \theta_{analytical}\|_2}{\|\theta_{num}\|_2 + \|\theta_{analytical}\|_2} < 10^{-7}$.
 
 ---
 
@@ -408,4 +462,4 @@ The following modular extensions are planned for future development to expand fr
 
 ## 📜 License
 
-Distributed under the MIT License. See `LICENSE` for details.
+Distributed under the **MIT License**. See `LICENSE` for details.
