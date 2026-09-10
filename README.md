@@ -1,4 +1,4 @@
-# 🧠 Neural Engine NumPy
+# Neural Engine NumPy
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-Pure%20Matrix%20Math-013243?style=for-the-badge&logo=numpy&logoColor=white)
@@ -9,7 +9,7 @@ A lightweight, modular deep learning framework built from first principles using
 
 ---
 
-### 📹 Watch the Complete Math & Code Walkthrough
+### Watch the Complete Math & Code Walkthrough
 
 [![YouTube Video](https://img.youtube.com/vi/KnZg2GKFDcQ/maxresdefault.jpg)](https://youtu.be/KnZg2GKFDcQ)
 
@@ -17,12 +17,12 @@ _Click the banner above to watch the full step-by-step mathematical derivation a
 
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture & Neural Pipeline](#-architecture--neural-pipeline)
-- [Comprehensive Mathematical Foundations](#-comprehensive-mathematical-foundations)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture & Neural Pipeline](#architecture--neural-pipeline)
+- [Comprehensive Mathematical Foundations](#comprehensive-mathematical-foundations)
   - [1. Matrix Notation & Tensor Shape Invariants](#1-matrix-notation--tensor-shape-invariants)
   - [2. He (Kaiming) Weight Initialization](#2-he-kaiming-weight-initialization)
   - [3. Forward Propagation Equations](#3-forward-propagation-equations)
@@ -32,15 +32,15 @@ _Click the banner above to watch the full step-by-step mathematical derivation a
     - [Step 5.2: Output Layer Parameter Gradients](#step-52-output-layer-parameter-gradients)
     - [Step 5.3: Propagating Error to Hidden Layers](#step-53-propagating-error-to-hidden-layers)
   - [6. Summary of Generalized Recursion & SGD Update](#6-summary-of-generalized-recursion--sgd-update)
-- [Codebase Structure](#-codebase-structure)
-- [Getting Started](#-getting-started)
-- [MNIST Benchmark & Training Results](#-mnist-benchmark--training-results)
-- [🔮 Future Roadmap](#-future-roadmap)
-- [License](#-license)
+- [Codebase Structure](#codebase-structure)
+- [Getting Started](#getting-started)
+- [MNIST Benchmark & Training Results](#mnist-benchmark--training-results)
+- [Future Roadmap](#future-roadmap)
+- [License](#license)
 
 ---
 
-## ⚡ Overview
+## Overview
 
 **Neural Engine NumPy** is a deep learning engine built strictly from first principles using Python and NumPy. It eliminates black-box automatic differentiation engines in favor of explicit analytical matrix calculus.
 
@@ -48,24 +48,24 @@ Every tensor operation, weight initialization, activation function, loss computa
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- 🚫 **Zero External ML Libraries**: Built exclusively with Python standard library and NumPy.
-- 📐 **First-Principles Calculus**: Complete mathematical derivations using the multivariate chain rule and Softmax Jacobian matrix reductions.
-- 🚀 **Fully Vectorized**: Computes transformations across $m$ training instances in parallel without Python `for` loops over batch items.
-- 🛡️ **Numerical Stability Guards**:
+- **Zero External ML Libraries**: Built exclusively with Python standard library and NumPy.
+- **First-Principles Calculus**: Complete mathematical derivations using the multivariate chain rule and Softmax Jacobian matrix reductions.
+- **Fully Vectorized**: Computes transformations across $m$ training instances in parallel without Python `for` loops over batch items.
+- **Numerical Stability Guards**:
   - Softmax max-logit subtraction ($Z_{\text{shifted}} = Z - \max(Z)$) to prevent exponential overflow.
   - Probability clipping ($\text{clip}(A, 10^{-15}, 1 - 10^{-15})$) to prevent $\ln(0)$ underflow.
   - He (Kaiming) normal weight initialization tailored for ReLU activations.
-- 🧱 **Clean Modular API**: Object-oriented abstractions mimicking PyTorch: `Dense`, `ReLU`, `SoftmaxCrossEntropy`, `SGD`, and `Sequential`.
+- **Clean Modular API**: Object-oriented abstractions mimicking PyTorch: `Dense`, `ReLU`, `SoftmaxCrossEntropy`, `SGD`, and `Sequential`.
 
 ---
 
-## 🏗️ Architecture & Neural Pipeline
+## Architecture & Neural Pipeline
 
 The baseline implementation classifies $28 \times 28$ pixel handwritten digits from the **MNIST** dataset into 10 classes (`0-9`):
 
-```
+```text
        [ Input Layer: X ]
       (784 x m batch matrix)
                 │
@@ -109,7 +109,7 @@ The baseline implementation classifies $28 \times 28$ pixel handwritten digits f
 
 ---
 
-## 🧮 Comprehensive Mathematical Foundations
+## Comprehensive Mathematical Foundations
 
 ---
 
@@ -130,9 +130,7 @@ We adopt a **column-vector layout** where each column in a matrix represents a s
 
 We use **He Normal Initialization** to set initial parameter weights:
 
-$$
-W^{[l]} \sim \mathcal{N}\left(0, \, \sqrt{\frac{2}{n_{l-1}}}\right)
-$$
+$$W^{[l]} \sim \mathcal{N}\left(0, \, \sqrt{\frac{2}{n_{l-1}}}\right)$$
 
 Because non-symmetrical activation functions like ReLU zero out all negative pre-activations (effectively killing half the signal variance), standard Xavier initialization causes signal collapse in deeper networks. He initialization scales the initial weight variance by $\sqrt{2 / n_{l-1}}$, keeping activation variances stable across all hidden layers during training.
 
@@ -144,29 +142,21 @@ For layer $l \in \{1, \dots, L\}$:
 
 #### Affine Step
 
-$$
-Z^{[l]} = W^{[l]} A^{[l-1]} + B^{[l]}
-$$
+$$Z^{[l]} = W^{[l]} A^{[l-1]} + B^{[l]}$$
 
 where $W^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$, $A^{[l-1]} \in \mathbb{R}^{n_{l-1} \times m}$, and $B^{[l]} \in \mathbb{R}^{n_l \times 1}$.
 
 #### Hidden Layer Activation (ReLU)
 
-$$
-A^{[l]} = g(Z^{[l]}) = \max(0, \, Z^{[l]})
-$$
+$$A^{[l]} = g(Z^{[l]}) = \max(0, \, Z^{[l]})$$
 
 #### Output Layer Activation (Softmax)
 
 To prevent exponential overflow, subtract $\max(Z^{(i)})$ along the class dimension:
 
-$$
-\hat{z}_j^{[L](i)} = z_j^{[L](i)} - \max_{r} z_r^{[L](i)}
-$$
+$$\hat{z}_j^{[L](i)} = z_j^{[L](i)} - \max_{r} z_r^{[L](i)}$$
 
-$$
-a_j^{[L](i)} = \frac{e^{\hat{z}_j^{[L](i)}}}{\sum_{r=1}^{n_L} e^{\hat{z}_r^{[L](i)}}}
-$$
+$$a_j^{[L](i)} = \frac{e^{\hat{z}_j^{[L](i)}}}{\sum_{r=1}^{n_L} e^{\hat{z}_r^{[L](i)}}}$$
 
 ---
 
@@ -174,15 +164,11 @@ $$
 
 For a single sample $(i)$ with one-hot label vector $y^{(i)}$:
 
-$$
-\mathcal{L}^{(i)} = -\sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)
-$$
+$$\mathcal{L}^{(i)} = -\sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)$$
 
 Average loss across a mini-batch of size $m$:
 
-$$
-\mathcal{L} = \frac{1}{m} \sum_{i=1}^{m} \mathcal{L}^{(i)} = -\frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)
-$$
+$$\mathcal{L} = \frac{1}{m} \sum_{i=1}^{m} \mathcal{L}^{(i)} = -\frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{n_L} y_j^{(i)} \ln\left(a_j^{[L](i)}\right)$$
 
 ---
 
@@ -192,15 +178,11 @@ $$
 
 We compute $\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}}$. Since pre-activation $z_j^{[L]}$ influences the denominator of every output activation $a_k^{[L]}$, we apply the multivariable chain rule over all output neurons $k \in \{1, \dots, n_L\}$:
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \sum_{k=1}^{n_L} \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} \frac{\partial a_k^{[L](i)}}{\partial z_j^{[L](i)}}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = \sum_{k=1}^{n_L} \frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} \frac{\partial a_k^{[L](i)}}{\partial z_j^{[L](i)}}$$
 
 ##### 1. Derivative of Loss w.r.t. Activation
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} = -\frac{y_k^{(i)}}{a_k^{[L](i)}}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial a_k^{[L](i)}} = -\frac{y_k^{(i)}}{a_k^{[L](i)}}$$
 
 ##### 2. Softmax Jacobian Matrix (Quotient Rule)
 
@@ -208,39 +190,23 @@ Using $a_k = \frac{e^{z_k}}{S}$ where $S = \sum_{r} e^{z_r}$:
 
 Direct Path ($k = j$):
 
-$$
-\frac{\partial a_j}{\partial z_j} = \frac{e^{z_j} S - e^{z_j} e^{z_j}}{S^2} = a_j (1 - a_j)
-$$
+$$\frac{\partial a_j}{\partial z_j} = \frac{e^{z_j} S - e^{z_j} e^{z_j}}{S^2} = a_j (1 - a_j)$$
 
 Indirect Path ($k \neq j$):
 
-$$
-\frac{\partial a_k}{\partial z_j} = \frac{0 \cdot S - e^{z_k} e^{z_j}}{S^2} = -a_k a_j
-$$
+$$\frac{\partial a_k}{\partial z_j} = \frac{0 \cdot S - e^{z_k} e^{z_j}}{S^2} = -a_k a_j$$
 
 ##### 3. Expanding and Collapsing the Chain Rule Sum
 
-$$
-\begin{aligned}
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} &= \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right) \\
-&= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)} \\
-&= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)} \\
-&= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right) \\
-&= -y_j^{(i)} + a_j^{[L](i)} \left( \sum_{k=1}^{n_L} y_k^{(i)} \right)
-\end{aligned}
-$$
+$$\begin{aligned} \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} &= \left(-\frac{y_j^{(i)}}{a_j^{[L](i)}}\right) a_j^{[L](i)}(1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} \left(-\frac{y_k^{(i)}}{a_k^{[L](i)}}\right) \left(-a_k^{[L](i)} a_j^{[L](i)}\right) \\ &= -y_j^{(i)} (1 - a_j^{[L](i)}) + \sum_{k \neq j}^{n_L} y_k^{(i)} a_j^{[L](i)} \\ &= -y_j^{(i)} + y_j^{(i)} a_j^{[L](i)} + a_j^{[L](i)} \sum_{k \neq j}^{n_L} y_k^{(i)} \\ &= -y_j^{(i)} + a_j^{[L](i)} \left( y_j^{(i)} + \sum_{k \neq j}^{n_L} y_k^{(i)} \right) \\ &= -y_j^{(i)} + a_j^{[L](i)} \left( \sum_{k=1}^{n_L} y_k^{(i)} \right) \end{aligned}$$
 
 Because $Y$ is a one-hot distribution ($\sum_{k=1}^{n_L} y_k^{(i)} = 1$):
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = a_j^{[L](i)} - y_j^{(i)}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} = a_j^{[L](i)} - y_j^{(i)}$$
 
 Vectorized across all classes and $m$ batch samples:
 
-$$
-dZ^{[L]} = A^{[L]} - Y \in \mathbb{R}^{n_L \times m}
-$$
+$$dZ^{[L]} = A^{[L]} - Y \in \mathbb{R}^{n_L \times m}$$
 
 ---
 
@@ -248,19 +214,13 @@ $$
 
 Applying the chain rule through $Z^{[L]} = W^{[L]} A^{[L-1]} + B^{[L]}$:
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial w_{jk}^{[L]}} = \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} \frac{\partial z_j^{[L](i)}}{\partial w_{jk}^{[L]}} = dZ_j^{[L](i)} a_k^{[L-1](i)}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial w_{jk}^{[L]}} = \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[L](i)}} \frac{\partial z_j^{[L](i)}}{\partial w_{jk}^{[L]}} = dZ_j^{[L](i)} a_k^{[L-1](i)}$$
 
 Averaging across mini-batch size $m$:
 
-$$
-dW^{[L]} = \frac{1}{m} dZ^{[L]} \left(A^{[L-1]}\right)^T \in \mathbb{R}^{n_L \times n_{L-1}}
-$$
+$$dW^{[L]} = \frac{1}{m} dZ^{[L]} \left(A^{[L-1]}\right)^T \in \mathbb{R}^{n_L \times n_{L-1}}$$
 
-$$
-dB^{[L]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[L](i)} = \frac{1}{m} \text{np.sum}(dZ^{[L]}, \text{axis}=1, \text{keepdims}=\text{True}) \in \mathbb{R}^{n_L \times 1}
-$$
+$$dB^{[L]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[L](i)} = \frac{1}{m} \text{np.sum}(dZ^{[L]}, \text{axis}=1, \text{keepdims}=\text{True}) \in \mathbb{R}^{n_L \times 1}$$
 
 ---
 
@@ -268,9 +228,7 @@ $$
 
 To push gradient back from layer $l+1$ to layer $l$:
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = \sum_{j=1}^{n_{l+1}} \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} \frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} \frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = \sum_{j=1}^{n_{l+1}} \frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} \frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} \frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}}$$
 
 Using:
 
@@ -278,19 +236,13 @@ Using:
 - $\frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} = W_{jk}^{[l+1]}$
 - $\frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}} = g'(z_k^{[l](i)})$
 
-$$
-\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = g'\left(z_k^{[l](i)}\right) \sum_{j=1}^{n_{l+1}} W_{jk}^{[l+1]} dZ_j^{[l+1](i)}
-$$
+$$\frac{\partial \mathcal{L}^{(i)}}{\partial z_k^{[l](i)}} = g'\left(z_k^{[l](i)}\right) \sum_{j=1}^{n_{l+1}} W_{jk}^{[l+1]} dZ_j^{[l+1](i)}$$
 
 Vectorizing across all hidden units and batch samples:
 
-$$
-dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]} \in \mathbb{R}^{n_l \times m}
-$$
+$$dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]} \in \mathbb{R}^{n_l \times m}$$
 
-$$
-dZ^{[l]} = dA^{[l]} \odot g'\left(Z^{[l]}\right) \in \mathbb{R}^{n_l \times m}
-$$
+$$dZ^{[l]} = dA^{[l]} \odot g'\left(Z^{[l]}\right) \in \mathbb{R}^{n_l \times m}$$
 
 where $\odot$ is the element-wise Hadamard product and $g'(Z) = \mathbb{I}(Z > 0)$ for ReLU.
 
@@ -300,41 +252,27 @@ where $\odot$ is the element-wise Hadamard product and $g'(Z) = \mathbb{I}(Z > 0
 
 For any layer $l \in \{1, \dots, L\}$:
 
-$$
-dZ^{[L]} = A^{[L]} - Y \quad (\text{Output layer})
-$$
+$$dZ^{[L]} = A^{[L]} - Y \quad (\text{Output layer})$$
 
-$$
-dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]}
-$$
+$$dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]}$$
 
-$$
-dZ^{[l]} = dA^{[l]} \odot \mathbb{I}\left(Z^{[l]} > 0\right) \quad (\text{Hidden layers } l < L)
-$$
+$$dZ^{[l]} = dA^{[l]} \odot \mathbb{I}\left(Z^{[l]} > 0\right) \quad (\text{Hidden layers } l < L)$$
 
-$$
-dW^{[l]} = \frac{1}{m} dZ^{[l]} \left(A^{[l-1]}\right)^T
-$$
+$$dW^{[l]} = \frac{1}{m} dZ^{[l]} \left(A^{[l-1]}\right)^T$$
 
-$$
-dB^{[l]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[l]}
-$$
+$$dB^{[l]} = \frac{1}{m} \sum_{i=1}^{m} dZ^{[l]}$$
 
 **Stochastic Gradient Descent Parameter Update:**
 
-$$
-W^{[l]} \leftarrow W^{[l]} - \alpha \, dW^{[l]}
-$$
+$$W^{[l]} \leftarrow W^{[l]} - \alpha \, dW^{[l]}$$
 
-$$
-B^{[l]} \leftarrow B^{[l]} - \alpha \, dB^{[l]}
-$$
+$$B^{[l]} \leftarrow B^{[l]} - \alpha \, dB^{[l]}$$
 
 ---
 
-## 📁 Codebase Structure
+## Codebase Structure
 
-```
+```text
 neural-engine-numpy/
 ├── main.py                # MNIST dataset loader, pipeline setup & training loop
 ├── NEURAL ENGINE.pdf      # Detailed handwritten math derivations & notes
@@ -351,7 +289,7 @@ neural-engine-numpy/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -399,7 +337,7 @@ predictions = np.argmax(probs, axis=0)
 
 ---
 
-## 📊 MNIST Benchmark & Training Results
+## MNIST Benchmark & Training Results
 
 Training a `784 -> 128 -> 64 -> 10` architecture with batch size `64` and learning rate $\alpha = 0.1$:
 
@@ -418,49 +356,49 @@ Training a `784 -> 128 -> 64 -> 10` architecture with batch size `64` and learni
 
 ---
 
-## 🔮 Future Roadmap
+## Future Roadmap
 
 The following modular extensions are planned for future development:
 
-### ⚡ Advanced Optimizers
+### Advanced Optimizers
 
-- [ ] **SGD with Momentum**:
-      $$V_{dW} = \beta V_{dW} + (1-\beta) dW, \qquad W \leftarrow W - \alpha V_{dW}$$
-- [ ] **RMSProp**:
-      $$S_{dW} = \beta S_{dW} + (1-\beta) dW^2, \qquad W \leftarrow W - \alpha \frac{dW}{\sqrt{S_{dW} + \epsilon}}$$
-- [ ] **Adam (Adaptive Moment Estimation)**:
-      $$W \leftarrow W - \alpha \frac{\hat{V}_{dW}}{\sqrt{\hat{S}_{dW}} + \epsilon}$$
+- **SGD with Momentum**:
+  $$V_{dW} = \beta V_{dW} + (1-\beta) dW, \qquad W \leftarrow W - \alpha V_{dW}$$
+- **RMSProp**:
+  $$S_{dW} = \beta S_{dW} + (1-\beta) dW^2, \qquad W \leftarrow W - \alpha \frac{dW}{\sqrt{S_{dW} + \epsilon}}$$
+- **Adam (Adaptive Moment Estimation)**:
+  $$W \leftarrow W - \alpha \frac{\hat{V}_{dW}}{\sqrt{\hat{S}_{dW}} + \epsilon}$$
 
-### 🛡️ Regularization & Architectural Layers
+### Regularization & Architectural Layers
 
-- [ ] **Inverted Dropout**:
-      Forward mask $M \sim \text{Bernoulli}(p)$, $A_{drop} = \frac{A \odot M}{p}$, backward $dA_{drop} = \frac{dA \odot M}{p}$.
-- [ ] **Batch Normalization**:
-      Normalizing mini-batch mean $\mu_B$ and variance $\sigma_B^2$ with learnable scale $\gamma$ and shift $\beta$:
-      $$\hat{X} = \frac{X - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}, \qquad Y_{BN} = \gamma \hat{X} + \beta$$
-- [ ] **$L_2$ Weight Decay (Ridge Regularization)**:
-      Adding $\frac{\lambda}{2m} \|W\|^2$ penalty to cost and $\frac{\lambda}{m} W$ to weight gradients.
+- **Inverted Dropout**:
+  Forward mask $M \sim \text{Bernoulli}(p)$, $A_{drop} = \frac{A \odot M}{p}$, backward $dA_{drop} = \frac{dA \odot M}{p}$.
+- **Batch Normalization**:
+  Normalizing mini-batch mean $\mu_B$ and variance $\sigma_B^2$ with learnable scale $\gamma$ and shift $\beta$:
+  $$\hat{X} = \frac{X - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}, \qquad Y_{BN} = \gamma \hat{X} + \beta$$
+- **$L_2$ Weight Decay (Ridge Regularization)**:
+  Adding $\frac{\lambda}{2m} \Vert{}W\Vert{}^2$ penalty to cost and $\frac{\lambda}{m} W$ to weight gradients.
 
-### 🧪 Additional Activations & Loss Functions
+### Additional Activations & Loss Functions
 
-- [ ] **LeakyReLU Activation**: $f(z) = \max(\alpha z, z)$ (resolves dying ReLU problem).
-- [ ] **Tanh Activation**: $f(z) = \tanh(z)$, $f'(z) = 1 - \tanh^2(z)$.
-- [ ] **Sigmoid & Binary Cross-Entropy**: For multi-label binary classification tasks.
+- **LeakyReLU Activation**: $f(z) = \max(\alpha z, z)$ (resolves dying ReLU problem).
+- **Tanh Activation**: $f(z) = \tanh(z)$, $f'(z) = 1 - \tanh^2(z)$.
+- **Sigmoid & Binary Cross-Entropy**: For multi-label binary classification tasks.
 
-### 🔍 Verification & Diagnostic Utilities
+### Verification & Diagnostic Utilities
 
-- [ ] **Finite-Difference Numerical Gradient Checking (`gradcheck`)**:
-      $$\frac{\partial \mathcal{L}}{\partial \theta} \approx \frac{\mathcal{L}(\theta + \epsilon) - \mathcal{L}(\theta - \epsilon)}{2\epsilon}$$
+- **Finite-Difference Numerical Gradient Checking (`gradcheck`)**:
+  $$\frac{\partial \mathcal{L}}{\partial \theta} \approx \frac{\mathcal{L}(\theta + \epsilon) - \mathcal{L}(\theta - \epsilon)}{2\epsilon}$$
 
 ---
 
-## 🤝 References & Attribution
+## References & Attribution
 
 - **Video Tutorial**: [Explaining The Entire Math & Coding A Neural Engine From Scratch Using Only NumPy](https://youtu.be/KnZg2GKFDcQ) by **Aryan Mishra** ([@modestpenguinn](https://youtube.com/@modestpenguinn)).
 - **Handwritten Mathematics**: Refer to [NEURAL ENGINE.pdf](NEURAL%20ENGINE.pdf) for the original derivations.
 
 ---
 
-## 📜 License
+## License
 
 Distributed under the **MIT License**. See `LICENSE` for details.
