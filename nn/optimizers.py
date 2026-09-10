@@ -4,7 +4,7 @@ class Optimizer:
 class SGD(Optimizer): # stochastic gradient descent
     def __init__(self, layers, lr):
         self.layers = layers # the layers to update (excludes the loss layer)
-        self.lr = lr # the hyperparamter
+        self.lr = lr # the hyperparameter
 
     def step(self):
         for layer in self.layers:

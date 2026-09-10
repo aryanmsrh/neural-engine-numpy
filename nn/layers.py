@@ -57,6 +57,8 @@ class SoftmaxCrossEntropy(Layer):
         self.A = np.exp(shift_Z) / (np.sum(np.exp(shift_Z), axis=0, keepdims=True)) # make use of numpy broadcasting to divide (nLxm) with (1xm)
 
         m = Y.shape[1] # number of samples
+        eps = 1e-15 # small epsilon to prevent log(0)
+        self.A = np.clip(self.A, eps, 1.0 - eps)
         loss = -1/m * np.sum(Y * np.log(self.A)) # categorical cross entropy loss
         return loss
     
@@ -64,4 +66,4 @@ class SoftmaxCrossEntropy(Layer):
         return self.A - self.Y # derived from combination of soft max act. + categorical cross entropy loss
     
 # LAYER MODULE COMPLETE.
-# note: we use He Init to have variance close to 1, if variance is more than 1, the weights might grow uncontrollably with training, hence the entire network becomes filled with NaNs, if the variance is < 1, the entire weights/bias/network would collapse to zero after many iterations. this is none as "vanishing gradients", we use He initalization instead of Xavier as we are using the ReLU activation unit which is not symmetrical, hence effectively killing half of the variance, unlike symmetric activation functions like sigmoid,tanh etc.
+# note: we use He Init to have variance close to 1, if variance is more than 1, the weights might grow uncontrollably with training, hence the entire network becomes filled with NaNs, if the variance is < 1, the entire weights/bias/network would collapse to zero after many iterations. this is known as "vanishing gradients", we use He initialization instead of Xavier as we are using the ReLU activation unit which is not symmetrical, hence effectively killing half of the variance, unlike symmetric activation functions like sigmoid,tanh etc.

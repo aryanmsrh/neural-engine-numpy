@@ -52,7 +52,7 @@ class Sequential(Model): # package everything togeher in a sequence
 
             epoch_loss /= num_batches # average epoch loss in the current epoch
 
-            if epoch % 1 == 0 or epoch == epochs -  1: # every 10 epoch or on the last epoch run a FULL forward propagation to gain insight into the full landscape on how well the network is generalizing onto the entire dataset and not just on a small batch
+            if epoch % 1 == 0 or epoch == epochs -  1: # on every epoch or on the last epoch run a FULL forward propagation to gain insight into the full landscape on how well the network is generalizing onto the entire dataset and not just on a small batch
                 out_full = self.forward(X) # forward without batching
                 self.loss_layer.forward(out_full, Y)
                 predictions = np.argmax(self.loss_layer.A, axis=0) # find maximum probability vertically, return 1d array
@@ -65,4 +65,4 @@ class Sequential(Model): # package everything togeher in a sequence
         shift_out = out - np.max(out, axis=0, keepdims=True) # prevent overflow error in pre-act. values get too big
         return np.exp(shift_out) / (np.sum(np.exp(shift_out), axis=0, keepdims=True)) # softmax to get probabilities + broadcasting
 
-# MODULE MODULE COMPLETE.
+# MODEL MODULE COMPLETE.

@@ -7,7 +7,7 @@ from nn.models import Sequential
 
 import pandas as pd # for loading mnist database
 
-np.random.seed(42) # for reproductibility
+np.random.seed(42) # for reproducibility
 
 print("LOADING MNIST")
 data = pd.read_csv("data.csv")
