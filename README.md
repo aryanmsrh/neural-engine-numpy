@@ -62,6 +62,26 @@ _Batch Size: 64 | Learning Rate: 0.1 | Optimizer: SGD_
 |   5   |   0.064004    |    98.65%    |    —     |
 |   9   |   0.033100    |    99.43%    |  97.29%  |
 
+## To Implement
+
+As pointed out in the [video breakdown](https://youtu.be/KnZg2GKFDcQ), the current architecture suffers from overfitting. The network possesses enough capacity to memorize the training data, leading to a gap between training and test accuracy. To make this engine production-ready, the following upgrades are pending:
+
+**Advanced Optimizers**
+
+- **Adam:** (Adaptive Moment Estimation) The current industry standard for dynamic learning rates.
+- **RMSProp:** (Root Mean Square Propagation) Adapts the learning rate by dividing the gradient by a running average of its recent magnitude. Prevents gradients from exploding or vanishing.
+- **SGD + Momentum:** Adds velocity to the gradient steps to push through local minima and accelerate convergence.
+
+**Regularization**
+
+- **Dropout Layers:** Randomly zeroing out a percentage of neurons during the forward pass to force the network to learn generalized features instead of memorizing specific pixel paths.
+- **Early Stopping:** Halting the training loop the exact epoch test accuracy begins to diverge from training accuracy.
+
+**Alternative Activations**
+
+- **LeakyReLU:** Solves the "dying ReLU" problem by allowing a small, non-zero gradient when pre-activations are negative, keeping neurons alive.
+- **Tanh:** An alternative zero-centered activation function.
+
 ## License
 
 MIT
