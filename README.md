@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-Pure%20Matrix%20Math-013243?style=for-the-badge&logo=numpy&logoColor=white)
-![Frameworks](https://img.shields.io/badge/Frameworks-Zero%20(Pure%20First%20Principles)-red?style=for-the-badge)
+![Frameworks](<https://img.shields.io/badge/Frameworks-Zero%20(Pure%20First%20Principles)-red?style=for-the-badge>)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 A lightweight, modular deep learning framework built from first principles using pure Python and NumPy—no PyTorch, no TensorFlow, no Autograd.
@@ -13,7 +13,7 @@ A lightweight, modular deep learning framework built from first principles using
 
 [![YouTube Video](https://img.youtube.com/vi/KnZg2GKFDcQ/maxresdefault.jpg)](https://youtu.be/KnZg2GKFDcQ)
 
-*Click the banner above to watch the full step-by-step mathematical derivation and code walkthrough video on YouTube.*
+_Click the banner above to watch the full step-by-step mathematical derivation and code walkthrough video on YouTube._
 
 ---
 
@@ -273,6 +273,7 @@ $$
 $$
 
 Using:
+
 - $\frac{\partial \mathcal{L}^{(i)}}{\partial z_j^{[l+1](i)}} = dZ_j^{[l+1](i)}$
 - $\frac{\partial z_j^{[l+1](i)}}{\partial a_k^{[l](i)}} = W_{jk}^{[l+1]}$
 - $\frac{\partial a_k^{[l](i)}}{\partial z_k^{[l](i)}} = g'(z_k^{[l](i)})$
@@ -308,7 +309,7 @@ dA^{[l]} = \left(W^{[l+1]}\right)^T dZ^{[l+1]}
 $$
 
 $$
-dZ^{[l]} = dA^{[l]} \odot \mathbb{I}(Z^{[l]} > 0) \quad (\text{Hidden layers } l < L)
+dZ^{[l]} = dA^{[l]} \odot \mathbb{I}\left(Z^{[l]} > 0\right) \quad (\text{Hidden layers } l < L)
 $$
 
 $$
@@ -403,17 +404,17 @@ predictions = np.argmax(probs, axis=0)
 Training a `784 -> 128 -> 64 -> 10` architecture with batch size `64` and learning rate $\alpha = 0.1$:
 
 | Epoch | Training Loss | Training Accuracy | Test Accuracy |
-| :---: | :---: | :---: | :---: |
-| **0** | `0.354731` | `92.98%` | — |
-| **1** | `0.168319` | `96.49%` | — |
-| **2** | `0.120606` | `97.34%` | — |
-| **3** | `0.094111` | `98.04%` | — |
-| **4** | `0.076494` | `98.33%` | — |
-| **5** | `0.064004` | `98.65%` | — |
-| **6** | `0.053954` | `98.85%` | — |
-| **7** | `0.045602` | `98.67%` | — |
-| **8** | `0.039642` | `99.13%` | — |
-| **9** | `0.033100` | **`99.43%`** | **`97.29%`** |
+| :---: | :-----------: | :---------------: | :-----------: |
+| **0** |  `0.354731`   |     `92.98%`      |       —       |
+| **1** |  `0.168319`   |     `96.49%`      |       —       |
+| **2** |  `0.120606`   |     `97.34%`      |       —       |
+| **3** |  `0.094111`   |     `98.04%`      |       —       |
+| **4** |  `0.076494`   |     `98.33%`      |       —       |
+| **5** |  `0.064004`   |     `98.65%`      |       —       |
+| **6** |  `0.053954`   |     `98.85%`      |       —       |
+| **7** |  `0.045602`   |     `98.67%`      |       —       |
+| **8** |  `0.039642`   |     `99.13%`      |       —       |
+| **9** |  `0.033100`   |   **`99.43%`**    | **`97.29%`**  |
 
 ---
 
@@ -422,37 +423,41 @@ Training a `784 -> 128 -> 64 -> 10` architecture with batch size `64` and learni
 The following modular extensions are planned for future development:
 
 ### ⚡ Advanced Optimizers
+
 - [ ] **SGD with Momentum**:
-  $$V_{dW} = \beta V_{dW} + (1-\beta) dW, \qquad W \leftarrow W - \alpha V_{dW}$$
+      $$V_{dW} = \beta V_{dW} + (1-\beta) dW, \qquad W \leftarrow W - \alpha V_{dW}$$
 - [ ] **RMSProp**:
-  $$S_{dW} = \beta S_{dW} + (1-\beta) dW^2, \qquad W \leftarrow W - \alpha \frac{dW}{\sqrt{S_{dW} + \epsilon}}$$
+      $$S_{dW} = \beta S_{dW} + (1-\beta) dW^2, \qquad W \leftarrow W - \alpha \frac{dW}{\sqrt{S_{dW} + \epsilon}}$$
 - [ ] **Adam (Adaptive Moment Estimation)**:
-  $$W \leftarrow W - \alpha \frac{\hat{V}_{dW}}{\sqrt{\hat{S}_{dW}} + \epsilon}$$
+      $$W \leftarrow W - \alpha \frac{\hat{V}_{dW}}{\sqrt{\hat{S}_{dW}} + \epsilon}$$
 
 ### 🛡️ Regularization & Architectural Layers
+
 - [ ] **Inverted Dropout**:
-  Forward mask $M \sim \text{Bernoulli}(p)$, $A_{drop} = \frac{A \odot M}{p}$, backward $dA_{drop} = \frac{dA \odot M}{p}$.
+      Forward mask $M \sim \text{Bernoulli}(p)$, $A_{drop} = \frac{A \odot M}{p}$, backward $dA_{drop} = \frac{dA \odot M}{p}$.
 - [ ] **Batch Normalization**:
-  Normalizing mini-batch mean $\mu_B$ and variance $\sigma_B^2$ with learnable scale $\gamma$ and shift $\beta$:
-  $$\hat{X} = \frac{X - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}, \qquad Y_{BN} = \gamma \hat{X} + \beta$$
+      Normalizing mini-batch mean $\mu_B$ and variance $\sigma_B^2$ with learnable scale $\gamma$ and shift $\beta$:
+      $$\hat{X} = \frac{X - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}, \qquad Y_{BN} = \gamma \hat{X} + \beta$$
 - [ ] **$L_2$ Weight Decay (Ridge Regularization)**:
-  Adding $\frac{\lambda}{2m} \|W\|^2$ penalty to cost and $\frac{\lambda}{m} W$ to weight gradients.
+      Adding $\frac{\lambda}{2m} \|W\|^2$ penalty to cost and $\frac{\lambda}{m} W$ to weight gradients.
 
 ### 🧪 Additional Activations & Loss Functions
+
 - [ ] **LeakyReLU Activation**: $f(z) = \max(\alpha z, z)$ (resolves dying ReLU problem).
 - [ ] **Tanh Activation**: $f(z) = \tanh(z)$, $f'(z) = 1 - \tanh^2(z)$.
 - [ ] **Sigmoid & Binary Cross-Entropy**: For multi-label binary classification tasks.
 
 ### 🔍 Verification & Diagnostic Utilities
+
 - [ ] **Finite-Difference Numerical Gradient Checking (`gradcheck`)**:
-  $$\frac{\partial \mathcal{L}}{\partial \theta} \approx \frac{\mathcal{L}(\theta + \epsilon) - \mathcal{L}(\theta - \epsilon)}{2\epsilon}$$
+      $$\frac{\partial \mathcal{L}}{\partial \theta} \approx \frac{\mathcal{L}(\theta + \epsilon) - \mathcal{L}(\theta - \epsilon)}{2\epsilon}$$
 
 ---
 
 ## 🤝 References & Attribution
 
 - **Video Tutorial**: [Explaining The Entire Math & Coding A Neural Engine From Scratch Using Only NumPy](https://youtu.be/KnZg2GKFDcQ) by **Aryan Mishra** ([@modestpenguinn](https://youtube.com/@modestpenguinn)).
-- **Handwritten Mathematics**: Refer to [NEURAL ENGINE.pdf](file:///home/aryanm/dev/neural-engine-numpy/NEURAL%20ENGINE.pdf) for the original derivations.
+- **Handwritten Mathematics**: Refer to [NEURAL ENGINE.pdf](NEURAL%20ENGINE.pdf) for the original derivations.
 
 ---
 
