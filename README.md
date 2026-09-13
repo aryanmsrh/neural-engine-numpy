@@ -76,7 +76,7 @@ pip install -r requirements.txt
 python web/app.py
 ```
 
-Open the printed URL (defaults to `http://localhost:5000`) in your browser. The server automatically searches and binds to the next available port if port `5000` is in use (e.g., AirPlay Receiver on macOS). If a port conflict persists, you can explicitly specify a port using the `-p` flag:
+Open the printed URL in your browser. If port `5000` is in use (e.g., AirPlay Receiver on macOS), specify an alternate port using the `-p` flag:
 
 ```bash
 python web/app.py -p 5001
