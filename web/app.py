@@ -53,4 +53,24 @@ def predict():
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    import argparse
+    import socket
+
+    parser = argparse.ArgumentParser(description="neural-engine web demo")
+    parser.add_argument("-p", "--port", type=int, default=None, help="port to run web server on")
+    args = parser.parse_args()
+
+    port = args.port
+    if port is None:
+        port = 5000
+        for p in range(5000, 5100):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("0.0.0.0", p))
+                    port = p
+                    break
+                except OSError:
+                    continue
+
+    print(f"server running at http://localhost:{port}")
+    app.run(host="0.0.0.0", port=port, debug=False)

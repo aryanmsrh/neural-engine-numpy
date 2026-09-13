@@ -70,25 +70,35 @@ git lfs install && git lfs pull
 pip install -r requirements.txt
 ```
 
-**Run Training / Evaluation:**
-
-```bash
-python scripts/main.py
-```
-
-Or to train and save checkpoints to `weights/model_weights.npz`:
-
-```bash
-python web/train.py
-```
-
 **Run Interactive Web Demo:**
 
 ```bash
 python web/app.py
 ```
 
-Open `http://localhost:5000` in your browser.
+Open the printed URL (defaults to `http://localhost:5000`) in your browser. The server automatically searches and binds to the next available port if port `5000` is in use (e.g., AirPlay Receiver on macOS). If a port conflict persists, you can explicitly specify a port using the `-p` flag:
+
+```bash
+python web/app.py -p 5001
+```
+
+## Extras
+
+**CLI Training & Evaluation:**
+
+Run the standalone 10-epoch training and evaluation script:
+
+```bash
+python scripts/main.py
+```
+
+**Train & Save Weight Checkpoints:**
+
+Train the network and persist weights to `weights/model_weights.npz` and metrics to `weights/model_stats.json`:
+
+```bash
+python web/train.py
+```
 
 **Custom Implementation:**
 
