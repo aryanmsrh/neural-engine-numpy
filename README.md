@@ -39,6 +39,14 @@ MNIST baseline model:
 
 ## Quick Start
 
+**Pull Dataset (Git LFS):**
+
+The dataset (`data/data.csv`) is tracked via [Git LFS](https://git-lfs.com/). Ensure Git LFS is installed on your system, then run the following in the repository root to pull the full dataset rather than just the LFS metadata header pointer:
+
+```bash
+git lfs install && git lfs pull
+```
+
 **Dependencies:**
 
 ```bash
