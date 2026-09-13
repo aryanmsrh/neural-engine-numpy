@@ -450,6 +450,54 @@
       color: #fff;
     }
 
+    /* Video Walkthrough Section */
+    .video-section {
+      max-width: 980px;
+      width: 100%;
+      margin: 0 auto 2.5rem;
+      padding: 0 1.5rem;
+    }
+
+    .video-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--border-glow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .video-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 aspect ratio */
+      background: #000000;
+    }
+
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .video-link {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .video-link:hover {
+      color: var(--text-main);
+    }
+
     /* Verbose Detailed Footer */
     footer {
       border-top: 1px solid var(--border);
@@ -807,6 +855,7 @@
       <div class="nav-links">
         <a href="/" class="nav-link active">Inference</a>
         <a href="/architecture" class="nav-link">First Principles &amp; Calculus &rarr;</a>
+        <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" class="nav-link">&#9654; Video Walkthrough</a>
       </div>
 
       <div class="nav-status">
@@ -1041,6 +1090,29 @@
     </div>
   </main>
 
+  <!-- Featured Video Walkthrough Section -->
+  <section class="video-section">
+    <div class="video-card">
+      <div class="card-head">
+        <div class="card-title">
+          <span>// video walkthrough &bull; architecture &amp; first principles</span>
+        </div>
+        <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" class="video-link">
+          Watch on YouTube &nearr;
+        </a>
+      </div>
+      <div class="video-container">
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/KnZg2GKFDcQ"
+          title="Neural Engine NumPy Video Walkthrough"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </section>
+
   <!-- Detailed Verbose Footer -->
   <footer>
     <div class="footer-inner">
@@ -1079,7 +1151,10 @@
 
       <div class="footer-bottom">
         <div>Neural Engine NumPy &bull; Built from first principles</div>
-        <div><a href="/architecture" style="color: var(--text-dim); text-decoration: underline;">Read Full Calculus Derivations &amp; Architecture Spec &rarr;</a></div>
+        <div style="display: flex; gap: 1.25rem; align-items: center;">
+          <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" style="color: var(--text-dim); text-decoration: underline;">Watch YouTube Walkthrough &nearr;</a>
+          <a href="/architecture" style="color: var(--text-dim); text-decoration: underline;">Read Full Calculus Derivations &amp; Architecture Spec &rarr;</a>
+        </div>
       </div>
     </div>
   </footer>
