@@ -76,10 +76,10 @@ pip install -r requirements.txt
 python web/app.py
 ```
 
-Open the printed URL in your browser. If port `5000` is in use (e.g., AirPlay Receiver on macOS), specify an alternate port using the `-p` flag:
+Open the printed URL in your browser. If port `5000` is in use (e.g., AirPlay Receiver on macOS), you can use Flask's built-in `-p` flag:
 
 ```bash
-python web/app.py -p 5001
+flask --app web/app run -p 5001
 ```
 
 ## Extras
