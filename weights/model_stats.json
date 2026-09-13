@@ -1,0 +1,8 @@
+{
+  "test_accuracy": 97.26,
+  "loss": 0.0632,
+  "epochs_trained": 10,
+  "parameters": 109386,
+  "topology": "784 -> 128 -> 64 -> 10",
+  "status": "online"
+}

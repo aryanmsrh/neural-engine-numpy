@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>neural-engine // numpy inference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030303;
+      --card-bg: #0a0a0a;
+      --border: rgba(255, 255, 255, 0.14);
+      --border-bright: rgba(255, 255, 255, 0.4);
+      --border-glow: 0 0 12px rgba(255, 255, 255, 0.07);
+      --text-main: #f5f5f5;
+      --text-dim: #888888;
+      --text-faint: #444444;
+      --accent-green: #22c55e;
+      --accent-blue: #3b82f6;
+      --accent-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Floating Pill Navbar */
+    .nav-wrapper {
+      position: sticky;
+      top: 1rem;
+      z-index: 1000;
+      padding: 0 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    nav.floating-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 980px;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9), var(--border-glow);
+      border-radius: 9999px;
+      padding: 0.55rem 1.25rem;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      text-decoration: none;
+    }
+
+    .brand-tag {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text-main);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-link.active {
+      color: var(--text-main);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border);
+      background: #000;
+      position: relative;
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+
+    /* Main Container */
+    .container {
+      max-width: 980px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 840px) {
+      .container {
+        grid-template-columns: 1fr;
+        margin-top: 1rem;
+      }
+      nav.floating-pill {
+        flex-wrap: wrap;
+        border-radius: 16px;
+        padding: 0.8rem 1rem;
+      }
+    }
+
+    /* Card Styling */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--border-glow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-head {
+      padding: 0.8rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #060606;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .canvas-pane {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    canvas#drawCanvas {
+      background: #000000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: crosshair;
+      touch-action: none;
+      display: block;
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.9);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    canvas#drawCanvas:hover {
+      border-color: var(--border-bright);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.08);
+    }
+
+    /* Controls */
+    .action-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1.25rem;
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #ffffff;
+      padding: 0.45rem 1rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      background: #dddddd;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--border-bright);
+    }
+
+    .toggle-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Metrics Column */
+    .metrics-col {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .prediction-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      background: #050505;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pred-hero {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .pred-num {
+      width: 60px;
+      height: 60px;
+      background: #000;
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.35rem;
+      font-weight: 700;
+      color: #ffffff;
+      box-shadow: var(--border-glow);
+    }
+
+    .pred-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .pred-meta .label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+    }
+
+    .pred-meta .conf {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-green);
+    }
+
+    .pred-vision {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .vision-thumbnail {
+      width: 56px;
+      height: 56px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vision-thumbnail img {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .vision-caption {
+      font-size: 0.6rem;
+      color: var(--text-faint);
+    }
+
+    /* Softmax Bars */
+    .bars-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .prob-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.72rem;
+    }
+
+    .digit-idx {
+      width: 14px;
+      text-align: right;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 12px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-value {
+      height: 100%;
+      width: 0%;
+      background: #555555;
+      transition: width 0.15s ease-out, background 0.15s;
+    }
+
+    .bar-value.top-pick {
+      background: #ffffff;
+    }
+
+    .prob-val {
+      width: 48px;
+      text-align: right;
+      font-size: 0.68rem;
+      color: var(--text-dim);
+    }
+
+    /* Presets */
+    .presets-row {
+      border-top: 1px solid var(--border);
+      padding-top: 0.85rem;
+    }
+
+    .presets-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .preset-chips {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+    }
+
+    .chip {
+      background: #000;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.35rem 0;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s;
+    }
+
+    .chip:hover {
+      border-color: #fff;
+      color: #fff;
+    }
+
+    /* Verbose Detailed Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+      padding: 2.5rem 1.5rem;
+      background: #050505;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+    }
+
+    .footer-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .footer-section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-main);
+      margin-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.3rem;
+    }
+
+    .footer-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      color: var(--text-dim);
+    }
+
+    .footer-list code {
+      color: #cccccc;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      color: var(--text-faint);
+    }
+
+    /* Model Accuracy Stats Bar - Single Slim Box */
+    .stats-wrapper {
+      max-width: 980px;
+      width: 100%;
+      margin: 2.25rem auto 0;
+      padding: 0 1.5rem;
+    }
+
+    .stats-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.72rem;
+      box-shadow: var(--border-glow);
+      flex-wrap: wrap;
+    }
+
+    .stat-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+    }
+
+    .stat-lbl {
+      color: var(--text-dim);
+      font-size: 0.68rem;
+    }
+
+    .stat-val {
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    .stat-val.highlight {
+      color: var(--accent-green);
+    }
+
+    .stat-dim {
+      color: var(--text-dim);
+      font-size: 0.7rem;
+    }
+
+    .stat-sep {
+      color: var(--text-faint);
+      user-select: none;
+    }
+
+    .btn-retrain {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #ffffff;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      margin-left: auto;
+    }
+
+    .btn-retrain:hover {
+      background: #dddddd;
+    }
+
+    .btn-retrain.active {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #000000;
+    }
+
+    /* Training Studio Card */
+    .studio-wrapper {
+      max-width: 980px;
+      width: 100%;
+      margin: 1.25rem auto 0;
+      padding: 0 1.5rem;
+    }
+
+    .studio-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-bright);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .studio-controls {
+      padding: 0.8rem 1.25rem;
+      background: #060606;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    .ctrl-input {
+      background: #000000;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.35rem 0.6rem;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.72rem;
+      outline: none;
+    }
+
+    .ctrl-input:focus {
+      border-color: var(--border-bright);
+    }
+
+    .train-graph-box {
+      background: var(--card-bg);
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .train-col-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+    }
+
+    .phase-badge {
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .phase-forward {
+      color: var(--accent-green);
+      border-color: rgba(34, 197, 94, 0.4);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .phase-idle {
+      color: var(--text-dim);
+      border-color: var(--border);
+    }
+
+    .canvas-container {
+      width: 100%;
+      background: #000000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 200px;
+    }
+
+    /* First Principles Equations Grid */
+    .equations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem;
+      padding: 0.85rem 1.25rem;
+      background: #060606;
+      border-top: 1px solid var(--border);
+    }
+
+    .eq-card {
+      background: #020202;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .eq-card.active-forward {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+    }
+
+    .eq-card.active-backward {
+      border-color: var(--accent-red);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+    }
+
+    .eq-card.active-optimizer {
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    }
+
+    .eq-title {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .eq-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .eq-formula code {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 2px 5px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .train-footer {
+      padding: 0.85rem 1.25rem;
+      background: #060606;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .prog-bar-track {
+      width: 100%;
+      height: 6px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .prog-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-green);
+      transition: width 0.15s ease-out;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Pill Navbar -->
+  <div class="nav-wrapper">
+    <nav class="floating-pill">
+      <a href="/" class="brand">
+        <span>[0]</span>
+        <span>neural-engine</span>
+        <span class="brand-tag">numpy-core</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link active">Inference</a>
+        <a href="/architecture" class="nav-link">First Principles &amp; Calculus &rarr;</a>
+      </div>
+
+      <div class="nav-status">
+        <div class="badge">
+          <span class="status-dot"></span>
+          <span>weights: loaded</span>
+        </div>
+
+        <div class="badge" id="latencyBadge">
+          <span>fwd: 0.10ms</span>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Model Accuracy Stats Bar (Single Line) -->
+  <div class="stats-wrapper">
+    <div class="stats-bar">
+      <div class="stat-inline">
+        <span class="stat-lbl">accuracy:</span>
+        <span class="stat-val highlight" id="statAccuracy">{{ "%.2f"|format(stats.test_accuracy) if stats and stats.test_accuracy else "97.23" }}%</span>
+      </div>
+      <span class="stat-sep">/</span>
+      <div class="stat-inline">
+        <span class="stat-lbl">loss:</span>
+        <span class="stat-val" id="statLoss">{{ "%.4f"|format(stats.loss) if stats and stats.loss else "0.0307" }}</span>
+      </div>
+      <span class="stat-sep">/</span>
+      <div class="stat-inline">
+        <span class="stat-lbl">epochs:</span>
+        <span class="stat-val" id="statEpochs">{{ stats.epochs_trained if stats and stats.epochs_trained else 10 }}</span>
+      </div>
+      <span class="stat-sep">/</span>
+      <div class="stat-inline">
+        <span class="stat-lbl">arch:</span>
+        <span class="stat-dim">784-128-64-10</span>
+      </div>
+      <span class="stat-sep">/</span>
+      <div class="stat-inline">
+        <span class="stat-lbl">params:</span>
+        <span class="stat-dim">109,386</span>
+      </div>
+      <button class="btn btn-retrain" id="btnToggleRetrain" onclick="toggleRetrainPanel()">
+        re-train model live
+      </button>
+    </div>
+  </div>
+
+  <!-- Live Training Studio Panel (Collapsible) -->
+  <div class="studio-wrapper" id="studioWrapper" style="display: none;">
+    <div class="studio-card">
+      <div class="card-head">
+        <div class="card-title">
+          <span>// live training studio &bull; forward &amp; backward passes</span>
+        </div>
+        <div style="display: flex; gap: 0.6rem; align-items: center;">
+          <span class="phase-badge phase-idle" id="studioStatus">idle</span>
+          <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;" onclick="toggleRetrainPanel()">close</button>
+        </div>
+      </div>
+
+      <div class="studio-controls">
+        <div class="ctrl-item">
+          <label for="inpEpochs">Epochs:</label>
+          <input type="number" id="inpEpochs" class="ctrl-input" value="10" min="1" max="100" style="width: 65px;">
+        </div>
+        <div class="ctrl-item">
+          <label for="inpLR">Learning Rate (&alpha;):</label>
+          <input type="number" id="inpLR" class="ctrl-input" value="0.10" step="0.01" style="width: 70px;">
+        </div>
+        <div class="ctrl-item">
+          <label>Mini-Batch:</label>
+          <input type="text" class="ctrl-input" value="64" disabled style="width: 45px; opacity: 0.6;">
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+          <button class="btn" id="btnStartTrain" onclick="startLiveTraining()">start training</button>
+          <button class="btn btn-outline" id="btnStopTrain" onclick="stopLiveTraining()" disabled>stop</button>
+        </div>
+      </div>
+
+      <!-- Live Loss & Accuracy Graphs (Full-Width) -->
+      <div class="train-graph-box">
+        <div class="train-col-head">
+          <span>Live Training Curves</span>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <span style="font-size: 0.65rem; color: #f59e0b;">&bull; Mini-Batch Loss</span>
+            <span style="font-size: 0.65rem; color: var(--accent-green);">&bull; Batch Accuracy</span>
+            <span style="font-size: 0.65rem; color: #38bdf8;">&bull; Test Accuracy</span>
+            <span style="font-size: 0.65rem; color: var(--text-dim);" id="graphStatsReadout">Loss: -- | Acc: --%</span>
+          </div>
+        </div>
+        <div class="canvas-container">
+          <canvas id="graphCanvas" width="920" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- First Principles Equations Strip -->
+      <div class="equations-grid">
+        <div class="eq-card" id="eqForward">
+          <div class="eq-title">
+            <span>Forward Propagation</span>
+            <span style="color: var(--accent-green); font-size: 0.62rem;">a^[l] = &sigma;(z^[l])</span>
+          </div>
+          <div class="eq-formula">
+            <code>z^[l] = W^[l] a^[l-1] + b^[l]</code>
+            <code>a^[l] = max(0, z^[l]) [relu]</code>
+            <code>ŷ = softmax(z^[3]) = e^(z) / &Sigma; e^(z)</code>
+          </div>
+        </div>
+
+        <div class="eq-card" id="eqBackward">
+          <div class="eq-title">
+            <span>Backward Propagation</span>
+            <span style="color: var(--accent-red); font-size: 0.62rem;">chain rule gradients</span>
+          </div>
+          <div class="eq-formula">
+            <code>dZ^[3] = ŷ - y [loss grad]</code>
+            <code>dW^[l] = (1/m) &middot; dZ^[l] (a^[l-1])^T</code>
+            <code>dA^[l-1] = (W^[l])^T dZ^[l]</code>
+          </div>
+        </div>
+
+        <div class="eq-card" id="eqOptimizer">
+          <div class="eq-title">
+            <span>Parameter Update (SGD)</span>
+            <span style="color: #38bdf8; font-size: 0.62rem;">&alpha; = learning rate</span>
+          </div>
+          <div class="eq-formula">
+            <code>db^[l] = (1/m) &Sigma; dZ^[l]</code>
+            <code>W^[l] := W^[l] - &alpha; &middot; dW^[l]</code>
+            <code>b^[l] := b^[l] - &alpha; &middot; db^[l]</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="train-footer">
+        <div class="prog-bar-track">
+          <div class="prog-bar-fill" id="trainProgFill"></div>
+        </div>
+        <div class="telemetry-row">
+          <span id="telEpoch">Epoch: -/-</span>
+          <span id="telBatch">Batch: -/-</span>
+          <span id="telLoss">Loss: -</span>
+          <span id="telBatchAcc">Batch Acc: -%</span>
+          <span id="telTestAcc">Test Acc: -%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="container">
+    <!-- Left: Drawing Canvas Card -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <span>// drawing canvas</span>
+        </div>
+        <span style="font-size: 0.65rem; color: var(--text-dim);">280 &times; 280 &rarr; 28 &times; 28</span>
+      </div>
+
+      <div class="canvas-pane">
+        <div class="canvas-wrapper">
+          <canvas id="drawCanvas" width="280" height="280"></canvas>
+        </div>
+
+        <div class="action-row">
+          <button class="btn" onclick="predictDrawnCanvas()">Predict</button>
+          <button class="btn btn-outline" onclick="clearCanvas()">Clear</button>
+          <label class="toggle-label">
+            <input type="checkbox" id="chkLiveDraw" checked> live-inference
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Prediction & Softmax Distribution -->
+    <div class="card metrics-col">
+      <div class="card-title" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+        <span>// inference output</span>
+      </div>
+
+      <!-- Top Result -->
+      <div class="prediction-box">
+        <div class="pred-hero">
+          <div class="pred-num" id="topDigit">-</div>
+          <div class="pred-meta">
+            <span class="label">Classification</span>
+            <span class="conf" id="topConfidence">0.0%</span>
+            <span style="font-size: 0.65rem; color: var(--text-dim);" id="timeDetail">&tau;<sub>fwd</sub>: 0.00 ms</span>
+          </div>
+        </div>
+
+        <div class="pred-vision">
+          <div class="vision-thumbnail">
+            <img id="modelVisionImg" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'></svg>" alt="28x28 input">
+          </div>
+          <span class="vision-caption">28x28 input</span>
+        </div>
+      </div>
+
+      <!-- Softmax Probabilities 0 - 9 -->
+      <div class="bars-container">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); display: flex; justify-content: space-between;">
+          <span>Distribution &sigma;(z)</span>
+          <span>P(y = k | x)</span>
+        </div>
+
+        <div id="probBars">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="presets-row">
+        <div class="presets-label">
+          <span>Preset Digit Synthesizer</span>
+        </div>
+        <div class="preset-chips">
+          <button class="chip" onclick="drawPreset(0)">0</button>
+          <button class="chip" onclick="drawPreset(1)">1</button>
+          <button class="chip" onclick="drawPreset(2)">2</button>
+          <button class="chip" onclick="drawPreset(3)">3</button>
+          <button class="chip" onclick="drawPreset(4)">4</button>
+          <button class="chip" onclick="drawPreset(5)">5</button>
+          <button class="chip" onclick="drawPreset(6)">6</button>
+          <button class="chip" onclick="drawPreset(7)">7</button>
+          <button class="chip" onclick="drawPreset(8)">8</button>
+          <button class="chip" onclick="drawPreset(9)">9</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Detailed Verbose Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-section-title">Model Topology</div>
+          <ul class="footer-list">
+            <li>Input: <code>x &isin; &reals;^(784 &times; 1)</code> [28 &times; 28 normalized]</li>
+            <li>Layer 1: <code>Dense(784 &rarr; 128)</code> + <code>ReLU</code></li>
+            <li>Layer 2: <code>Dense(128 &rarr; 64)</code> + <code>ReLU</code></li>
+            <li>Layer 3: <code>Dense(64 &rarr; 10)</code></li>
+            <li>Head: Fused Softmax Cross-Entropy</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Weight Tensor Dimensions</div>
+          <ul class="footer-list">
+            <li><code>W^[1]</code>: (128, 784) | <code>b^[1]</code>: (128, 1) = 100,480 params</li>
+            <li><code>W^[2]</code>: (64, 128) | <code>b^[2]</code>: (64, 1) = 8,256 params</li>
+            <li><code>W^[3]</code>: (10, 64) | <code>b^[3]</code>: (10, 1) = 650 params</li>
+            <li>Total Learnable Parameters: <strong>109,386</strong></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Invariants &amp; Optimization</div>
+          <ul class="footer-list">
+            <li>Optimizer: <code>SGD(&alpha; = 0.10)</code> mini-batch <code>B = 64</code></li>
+            <li>Weight Init: He Normal <code>&radic;(2 / d_in)</code></li>
+            <li>Numerical Stability: Max-logit shift + <code>1e-15</code> eps clip</li>
+            <li>Runtime: <strong>Zero Frameworks</strong> (pure NumPy matrix operations)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>Neural Engine NumPy &bull; Built from first principles</div>
+        <div><a href="/architecture" style="color: var(--text-dim); text-decoration: underline;">Read Full Calculus Derivations &amp; Architecture Spec &rarr;</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize bars
+    const probContainer = document.getElementById("probBars");
+    for (let i = 0; i < 10; i++) {
+      probContainer.innerHTML += `
+        <div class="prob-row">
+          <div class="digit-idx">${i}</div>
+          <div class="bar-track">
+            <div class="bar-value" id="bar-${i}"></div>
+          </div>
+          <div class="prob-val" id="pct-${i}">0.0%</div>
+        </div>
+      `;
+    }
+
+    function updateResults(data) {
+      if (!data || data.error) {
+        console.error(data.error || "Inference error");
+        return;
+      }
+
+      document.getElementById("topDigit").textContent = data.prediction;
+      document.getElementById("topConfidence").textContent = (data.confidence * 100).toFixed(1) + "%";
+      document.getElementById("timeDetail").innerHTML = `&tau;<sub>fwd</sub>: ${data.inference_time_ms} ms`;
+      document.getElementById("latencyBadge").querySelector("span").textContent = `fwd: ${data.inference_time_ms}ms`;
+
+      if (data.preview) {
+        document.getElementById("modelVisionImg").src = data.preview;
+      }
+
+      for (let i = 0; i < 10; i++) {
+        const prob = data.probabilities[i] || 0;
+        const pct = (prob * 100).toFixed(1) + "%";
+        const bar = document.getElementById(`bar-${i}`);
+        const pctEl = document.getElementById(`pct-${i}`);
+
+        bar.style.width = pct;
+        pctEl.textContent = pct;
+
+        if (i === data.prediction) {
+          bar.classList.add("top-pick");
+          pctEl.style.color = "#ffffff";
+          pctEl.style.fontWeight = "600";
+        } else {
+          bar.classList.remove("top-pick");
+          pctEl.style.color = "var(--text-dim)";
+          pctEl.style.fontWeight = "400";
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // Interactive Drawing Canvas
+    // -------------------------------------------------------------
+    const drawCanvas = document.getElementById("drawCanvas");
+    const dctx = drawCanvas.getContext("2d");
+    let isDrawing = false;
+    let drawTimeout = null;
+
+    function clearCanvas() {
+      dctx.fillStyle = "#000000";
+      dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+    clearCanvas();
+
+    dctx.strokeStyle = "#FFFFFF";
+    dctx.lineWidth = 19;
+    dctx.lineCap = "round";
+    dctx.lineJoin = "round";
+
+    function getCoords(e) {
+      const rect = drawCanvas.getBoundingClientRect();
+      const scaleX = drawCanvas.width / rect.width;
+      const scaleY = drawCanvas.height / rect.height;
+      if (e.touches && e.touches[0]) {
+        return {
+          x: (e.touches[0].clientX - rect.left) * scaleX,
+          y: (e.touches[0].clientY - rect.top) * scaleY
+        };
+      }
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const { x, y } = getCoords(e);
+      dctx.beginPath();
+      dctx.moveTo(x, y);
+    }
+
+    function doDraw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const { x, y } = getCoords(e);
+      dctx.lineTo(x, y);
+      dctx.stroke();
+
+      if (document.getElementById("chkLiveDraw").checked) {
+        clearTimeout(drawTimeout);
+        drawTimeout = setTimeout(predictDrawnCanvas, 100);
+      }
+    }
+
+    function stopDraw() {
+      if (!isDrawing) return;
+      isDrawing = false;
+      if (document.getElementById("chkLiveDraw").checked) {
+        predictDrawnCanvas();
+      }
+    }
+
+    drawCanvas.addEventListener("mousedown", startDraw);
+    drawCanvas.addEventListener("mousemove", doDraw);
+    window.addEventListener("mouseup", stopDraw);
+
+    drawCanvas.addEventListener("touchstart", startDraw, { passive: false });
+    drawCanvas.addEventListener("touchmove", doDraw, { passive: false });
+    window.addEventListener("touchend", stopDraw);
+
+    async function predictDrawnCanvas() {
+      const dataUri = drawCanvas.toDataURL("image/png");
+      try {
+        const res = await fetch("/api/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: dataUri })
+        });
+        const data = await res.json();
+        updateResults(data);
+      } catch (err) {
+        console.error("Predict error:", err);
+      }
+    }
+
+    function drawPreset(digit) {
+      clearCanvas();
+      dctx.save();
+      dctx.font = "bold 200px 'JetBrains Mono', monospace";
+      dctx.fillStyle = "#FFFFFF";
+      dctx.textAlign = "center";
+      dctx.textBaseline = "middle";
+      dctx.fillText(digit, drawCanvas.width / 2, drawCanvas.height / 2 + 10);
+      dctx.restore();
+      predictDrawnCanvas();
+    }
+
+    // -------------------------------------------------------------
+    // Live Model Stats & Re-training Studio
+    // -------------------------------------------------------------
+    let trainEventSource = null;
+    let isPanelOpen = false;
+
+    // loss & accuracy telemetry arrays for canvas graph
+    let lossHistory = [];
+    let accHistory = [];
+    let testHistory = [];
+
+    // load dynamic accuracy & model stats on startup
+    async function fetchModelStats() {
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        if (data.accuracy !== undefined) {
+          document.getElementById("statAccuracy").textContent = data.accuracy.toFixed(2) + "%";
+        }
+        if (data.loss !== undefined) {
+          document.getElementById("statLoss").textContent = data.loss.toFixed(4);
+        }
+        if (data.epochs_trained !== undefined) {
+          document.getElementById("statEpochs").textContent = data.epochs_trained;
+        }
+      } catch (err) {
+        console.error("error loading model stats:", err);
+      }
+    }
+
+    function toggleRetrainPanel() {
+      const wrapper = document.getElementById("studioWrapper");
+      const btn = document.getElementById("btnToggleRetrain");
+      isPanelOpen = !isPanelOpen;
+      if (isPanelOpen) {
+        wrapper.style.display = "block";
+        btn.classList.add("active");
+        renderGraphs();
+        wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } else {
+        wrapper.style.display = "none";
+        btn.classList.remove("active");
+        if (trainEventSource) {
+          stopLiveTraining();
+        }
+      }
+    }
+
+    // highlight active equation card during training pass
+    function highlightEquation(phase) {
+      const fwd = document.getElementById("eqForward");
+      const bwd = document.getElementById("eqBackward");
+      const opt = document.getElementById("eqOptimizer");
+      if (!fwd || !bwd || !opt) return;
+
+      fwd.className = "eq-card" + (phase === "forward" ? " active-forward" : "");
+      bwd.className = "eq-card" + (phase === "backward" ? " active-backward" : "");
+      opt.className = "eq-card" + (phase === "optimizer" ? " active-optimizer" : "");
+    }
+
+
+
+    // -------------------------------------------------------------
+    // Live Training Graphs (Loss & Accuracy)
+    // -------------------------------------------------------------
+    const graphCanvas = document.getElementById("graphCanvas");
+    const gctx = graphCanvas.getContext("2d");
+
+    function renderGraphs() {
+      const W = graphCanvas.width;
+      const H = graphCanvas.height;
+
+      gctx.fillStyle = "#030303";
+      gctx.fillRect(0, 0, W, H);
+
+      gctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      gctx.lineWidth = 1;
+      gctx.beginPath();
+      gctx.moveTo(0, H / 2);
+      gctx.lineTo(W, H / 2);
+      gctx.stroke();
+
+      gctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+      gctx.font = "9px 'JetBrains Mono'";
+      gctx.textAlign = "left";
+      gctx.fillText("LOSS &darr;", 10, 15);
+      gctx.fillText("ACCURACY &uarr; (0 - 100%)", 10, H / 2 + 15);
+
+      if (lossHistory.length < 2) {
+        gctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+        gctx.textAlign = "center";
+        gctx.fillText("Waiting for training telemetry...", W / 2, H / 2 - 10);
+        gctx.fillText("Graphs will plot live here tick-by-tick", W / 2, H / 2 + 25);
+        return;
+      }
+
+      const N = lossHistory.length;
+      const maxLoss = Math.max(...lossHistory, 1.0) * 1.05;
+      const lossTop = 22;
+      const lossHeight = (H / 2) - 30;
+
+      // Draw Loss Curve
+      gctx.strokeStyle = "#f59e0b";
+      gctx.lineWidth = 1.6;
+      gctx.beginPath();
+
+      for (let i = 0; i < N; i++) {
+        const x = 35 + (i / (N - 1)) * (W - 50);
+        const normLoss = Math.min(1.0, Math.max(0, lossHistory[i] / maxLoss));
+        const y = lossTop + (1.0 - normLoss) * lossHeight;
+        if (i === 0) gctx.moveTo(x, y);
+        else gctx.lineTo(x, y);
+      }
+      gctx.stroke();
+
+      const curLoss = lossHistory[N - 1];
+      gctx.fillStyle = "#f59e0b";
+      gctx.textAlign = "right";
+      gctx.fillText("cur: " + curLoss.toFixed(4), W - 15, 15);
+
+      // Draw Accuracy Curve
+      const accTop = H / 2 + 22;
+      const accHeight = (H / 2) - 30;
+
+      const targetY = accTop + (1.0 - 0.90) * accHeight;
+      gctx.strokeStyle = "rgba(34, 197, 94, 0.25)";
+      gctx.setLineDash([3, 3]);
+      gctx.beginPath();
+      gctx.moveTo(35, targetY);
+      gctx.lineTo(W - 15, targetY);
+      gctx.stroke();
+      gctx.setLineDash([]);
+      gctx.fillStyle = "rgba(34, 197, 94, 0.4)";
+      gctx.fillText("90%", 30, targetY + 3);
+
+      gctx.strokeStyle = "#22c55e";
+      gctx.lineWidth = 1.6;
+      gctx.beginPath();
+
+      for (let i = 0; i < N; i++) {
+        const x = 35 + (i / (N - 1)) * (W - 50);
+        const normAcc = Math.min(1.0, Math.max(0, accHistory[i] / 100.0));
+        const y = accTop + (1.0 - normAcc) * accHeight;
+        if (i === 0) gctx.moveTo(x, y);
+        else gctx.lineTo(x, y);
+      }
+      gctx.stroke();
+
+      const curAcc = accHistory[N - 1];
+      gctx.fillStyle = "#22c55e";
+      gctx.textAlign = "right";
+      gctx.fillText("cur: " + curAcc.toFixed(1) + "%", W - 15, H / 2 + 15);
+
+      testHistory.forEach(th => {
+        const x = 35 + (th.step / Math.max(N - 1, 1)) * (W - 50);
+        const norm = th.acc / 100.0;
+        const y = accTop + (1.0 - norm) * accHeight;
+        gctx.fillStyle = "#38bdf8";
+        gctx.beginPath();
+        gctx.arc(x, y, 4, 0, Math.PI * 2);
+        gctx.fill();
+      });
+    }
+
+    // -------------------------------------------------------------
+    // Live Training Controller via SSE
+    // -------------------------------------------------------------
+    function startLiveTraining() {
+      const epochsInput = document.getElementById("inpEpochs");
+      const epochs = parseInt(epochsInput ? epochsInput.value : 10) || 10;
+      const lr = document.getElementById("inpLR") ? document.getElementById("inpLR").value : 0.10;
+
+      document.getElementById("btnStartTrain").disabled = true;
+      document.getElementById("btnStopTrain").disabled = false;
+
+      const studioStatus = document.getElementById("studioStatus");
+      studioStatus.className = "phase-badge phase-forward";
+      studioStatus.textContent = "training live...";
+
+      lossHistory = [];
+      accHistory = [];
+      testHistory = [];
+      renderGraphs();
+
+      let stepCounter = 0;
+      let totalSteps = epochs * 150;
+
+      trainEventSource = new EventSource(`/api/train/stream?epochs=${epochs}&lr=${lr}`);
+
+      trainEventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+
+        if (data.type === "init") {
+          totalSteps = data.total_epochs * data.total_batches;
+          document.getElementById("telEpoch").textContent = `Epoch: 1/${data.total_epochs}`;
+          document.getElementById("telBatch").textContent = `Batch: 1/${data.total_batches}`;
+        } else if (data.type === "step") {
+          stepCounter = data.step;
+          lossHistory.push(data.loss);
+          accHistory.push(data.batch_accuracy);
+
+          // cycle equation card highlight: forward, backward, optimizer
+          if (stepCounter % 3 === 0) {
+            highlightEquation("forward");
+          } else if (stepCounter % 3 === 1) {
+            highlightEquation("backward");
+          } else {
+            highlightEquation("optimizer");
+          }
+
+          const pct = Math.min(100, (stepCounter / totalSteps) * 100);
+          document.getElementById("trainProgFill").style.width = pct + "%";
+          document.getElementById("telEpoch").textContent = `Epoch: ${data.epoch}/${data.total_epochs}`;
+          document.getElementById("telBatch").textContent = `Batch: ${data.batch}/${data.total_batches}`;
+          document.getElementById("telLoss").textContent = `Loss: ${data.loss.toFixed(4)}`;
+          document.getElementById("telBatchAcc").textContent = `Batch Acc: ${data.batch_accuracy.toFixed(1)}%`;
+          document.getElementById("graphStatsReadout").textContent = `Loss: ${data.loss.toFixed(4)} | Acc: ${data.batch_accuracy.toFixed(1)}%`;
+
+          renderGraphs();
+        } else if (data.type === "epoch_complete") {
+          testHistory.push({ step: lossHistory.length, acc: data.test_accuracy });
+          document.getElementById("telTestAcc").textContent = `Test Acc: ${data.test_accuracy.toFixed(2)}%`;
+          highlightEquation("optimizer");
+          renderGraphs();
+        } else if (data.type === "finished") {
+          stopLiveTraining();
+          studioStatus.className = "phase-badge phase-forward";
+          studioStatus.textContent = "completed";
+          document.getElementById("trainProgFill").style.width = "100%";
+
+          document.getElementById("statAccuracy").textContent = data.final_accuracy.toFixed(2) + "%";
+          document.getElementById("statLoss").textContent = data.final_loss.toFixed(4);
+          document.getElementById("statEpochs").textContent = data.total_epochs;
+          highlightEquation("none");
+        }
+      };
+
+      trainEventSource.onerror = (err) => {
+        console.error("SSE stream error:", err);
+        stopLiveTraining();
+      };
+    }
+
+    function stopLiveTraining() {
+      if (trainEventSource) {
+        trainEventSource.close();
+        trainEventSource = null;
+      }
+      document.getElementById("btnStartTrain").disabled = false;
+      document.getElementById("btnStopTrain").disabled = true;
+      const studioStatus = document.getElementById("studioStatus");
+      if (studioStatus && studioStatus.textContent === "training live...") {
+        studioStatus.textContent = "stopped";
+        studioStatus.className = "phase-badge phase-idle";
+      }
+      highlightEquation("none");
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      fetchModelStats();
+      if (document.fonts && document.fonts.ready) {
+        Promise.race([
+          document.fonts.ready,
+          new Promise(resolve => setTimeout(resolve, 300))
+        ]).then(() => drawPreset(5));
+      } else {
+        drawPreset(5);
+      }
+    });
+  </script>
+</body>
+</html>

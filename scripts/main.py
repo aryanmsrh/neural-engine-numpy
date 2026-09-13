@@ -1,16 +1,19 @@
 # train a network on the mnist database
 
+import sys
 import numpy as np
+import pandas as pd # for loading mnist dataset
+
+sys.path.extend([".", ".."]) # grab nn from root or parent dir
+
 from nn.layers import Dense, ReLU, SoftmaxCrossEntropy
 from nn.optimizers import SGD
 from nn.models import Sequential
 
-import pandas as pd # for loading mnist dataset
-
 np.random.seed(42) # for reproducibility
 
 print("LOADING MNIST")
-data = pd.read_csv("data.csv")
+data = pd.read_csv("data/data.csv")
 
 X = data.drop('label', axis=1).values / 255.0 # (60000, 784)
 Y = data['label'].values

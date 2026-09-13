@@ -8,7 +8,29 @@ A deep learning framework built entirely from first principles using pure Python
 ## Resources
 
 - **Walkthrough:** [YouTube Video](https://youtu.be/KnZg2GKFDcQ)
-- **Calculus Derivations:** Reference `NEURAL ENGINE.pdf` in this repository for the full backpropagation and optimization proofs.
+- **Calculus Derivations:** Reference `docs/NEURAL ENGINE.pdf` in this repository for the full backpropagation and optimization proofs.
+
+## Project Structure
+
+```text
+neural-engine-numpy/
+├── data/              # Raw datasets (e.g. data.csv)
+├── docs/              # Mathematical derivations and calculus notes (NEURAL ENGINE.pdf)
+├── nn/                # Core pure NumPy neural network framework
+│   ├── __init__.py
+│   ├── layers.py      # Dense, ReLU, SoftmaxCrossEntropy
+│   ├── models.py      # Sequential model container
+│   └── optimizers.py  # SGD optimizer
+├── scripts/           # Training and evaluation entry points
+│   └── main.py        # 10-epoch training and evaluation script
+├── web/               # Interactive web demo for handwritten digit recognition
+│   ├── app.py         # Flask web server
+│   ├── train.py       # Training pipeline & streaming engine
+│   ├── inference.py   # Pure NumPy inference engine
+│   ├── preprocess.py  # Canvas image preprocessor
+│   └── templates/     # UI templates (index.html, architecture.html)
+└── weights/           # Trained weight checkpoints (model_weights.npz)
+```
 
 ## Architecture
 
@@ -20,13 +42,25 @@ MNIST baseline model:
 **Dependencies:**
 
 ```bash
-pip install numpy pandas
+pip install -r requirements.txt
 ```
 
-**Run Training:**
+**Run Training / Evaluation:**
 
 ```bash
-python main.py
+python scripts/main.py
+```
+
+Or to train and save checkpoints to `weights/model_weights.npz`:
+
+```bash
+python web/train.py
+```
+
+**Run Interactive Web Demo:**
+
+```bash
+python web/app.py
 ```
 
 **Custom Implementation:**

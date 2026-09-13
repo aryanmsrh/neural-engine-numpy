@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>neural-engine // first principles &amp; calculus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <!-- KaTeX for crisp LaTeX rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMath()"></script>
+  <script>
+    function renderMath() {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ],
+          output: 'html',
+          throwOnError: false
+        });
+      }
+    }
+    document.addEventListener('DOMContentLoaded', renderMath);
+  </script>
+
+  <style>
+    :root {
+      --bg: #030303;
+      --card-bg: #0a0a0a;
+      --border: rgba(255, 255, 255, 0.14);
+      --border-bright: rgba(255, 255, 255, 0.4);
+      --border-glow: 0 0 12px rgba(255, 255, 255, 0.07);
+      --text-main: #f5f5f5;
+      --text-dim: #888888;
+      --text-faint: #444444;
+      --accent-green: #22c55e;
+      --accent-blue: #3b82f6;
+      --code-bg: #050505;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* KaTeX font isolation */
+    .katex {
+      font-family: KaTeX_Main, 'Times New Roman', serif;
+    }
+
+    /* Floating Pill Navbar */
+    .nav-wrapper {
+      position: sticky;
+      top: 1rem;
+      z-index: 1000;
+      padding: 0 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    nav.floating-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 980px;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9), var(--border-glow);
+      border-radius: 9999px;
+      padding: 0.55rem 1.25rem;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      text-decoration: none;
+    }
+
+    .brand-tag {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text-main);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-link.active {
+      color: var(--text-main);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Content Layout */
+    .article-container {
+      max-width: 860px;
+      width: 100%;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .hero-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      box-shadow: var(--border-glow);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.6rem;
+    }
+
+    .section-title span.index {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+
+    p {
+      color: #cccccc;
+      line-height: 1.7;
+    }
+
+    .math-block {
+      background: #000000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+
+    pre code {
+      display: block;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      color: #e5e5e5;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .keyword { color: #60a5fa; }
+    .fn { color: #34d399; }
+    .comment { color: #6b7280; font-style: italic; }
+    .num { color: #f472b6; }
+
+    .tag-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #000;
+      color: var(--text-dim);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+      padding: 2rem 1.5rem;
+      background: #050505;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Pill Navbar -->
+  <div class="nav-wrapper">
+    <nav class="floating-pill">
+      <a href="/" class="brand">
+        <span>[0]</span>
+        <span>neural-engine</span>
+        <span class="brand-tag">numpy-core</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link">&larr; Inference App</a>
+        <a href="/architecture" class="nav-link active">First Principles &amp; Calculus</a>
+      </div>
+
+      <div class="brand-tag">zero-frameworks</div>
+    </nav>
+  </div>
+
+  <div class="article-container">
+    <header class="hero-header">
+      <h1 class="hero-title">First Principles &amp; Calculus Architecture</h1>
+      <p class="hero-subtitle">
+        Mathematical derivations, tensor invariants, backpropagation chain rule proofs, and vectorized execution using strictly pure NumPy and Python standard library.
+      </p>
+    </header>
+
+    <!-- Section 1: Philosophy -->
+    <section class="section-card">
+      <h2 class="section-title"><span class="index">01.</span> Philosophy &amp; Tensor Invariants</h2>
+      <p>
+        Modern deep learning libraries hide automatic differentiation behind computational graphs and C++/CUDA backends. In contrast, <strong>Neural Engine</strong> implements multivariable matrix calculus explicitly from scratch without autograd, PyTorch, TensorFlow, or scikit-learn.
+      </p>
+      <div class="tag-row">
+        <span class="tag">Zero Autograd</span>
+        <span class="tag">Pure NumPy Matrix Multiplication</span>
+        <span class="tag">Batch-Vectorized (@ / np.dot)</span>
+      </div>
+      <p>
+        The network topology follows a 3-layer Multilayer Perceptron (MLP) mapping 784-dimensional flattened $28 \times 28$ image vectors to 10 categorical logits:
+      </p>
+      <div class="math-block">
+        $$\mathbf{x} \in \mathbb{R}^{784 \times 1} \xrightarrow{\text{Dense}(128)} \mathbf{z}^{[1]} \xrightarrow{\text{ReLU}} \mathbf{a}^{[1]} \xrightarrow{\text{Dense}(64)} \mathbf{z}^{[2]} \xrightarrow{\text{ReLU}} \mathbf{a}^{[2]} \xrightarrow{\text{Dense}(10)} \mathbf{z}^{[3]} \xrightarrow{\text{Softmax}} \mathbf{\hat{y}} \in \mathbb{R}^{10 \times 1}$$
+      </div>
+      <p>
+        For a batch of $m$ training instances ($X \in \mathbb{R}^{784 \times m}$), all operations are column-wise vectorized so no Python loop is executed over batch elements.
+      </p>
+    </section>
+
+    <!-- Section 2: Forward Propagation & He Normal -->
+    <section class="section-card">
+      <h2 class="section-title"><span class="index">02.</span> Affine Step &amp; He (Kaiming) Normal Initialization</h2>
+      <p>
+        For each dense layer $l$ with pre-activation dimension $d_{out}$ and input dimension $d_{in}$:
+      </p>
+      <div class="math-block">
+        $$Z^{[l]} = W^{[l]} A^{[l-1]} + b^{[l]}, \quad W^{[l]} \in \mathbb{R}^{d_{out} \times d_{in}}, \quad b^{[l]} \in \mathbb{R}^{d_{out} \times 1}$$
+      </div>
+      <p>
+        <strong>Why He Normal Initialization?</strong> Because ReLU zeros out all negative inputs, it effectively cuts signal variance in half at each layer. Without compensation, activations either shrink to zero (vanishing gradients) or blow up (exploding gradients). He initialization solves this qualitatively by scaling the random weights by $\sqrt{2 / d_{in}}$, balancing out the loss from ReLU and keeping the signal flow stable across all layers:
+      </p>
+      <pre><code><span class="keyword">class</span> <span class="fn">Dense</span>:
+    <span class="keyword">def</span> <span class="fn">__init__</span>(self, input_dim, output_dim):
+        <span class="comment"># he normal weight initialization</span>
+        self.W = np.random.randn(output_dim, input_dim) * np.sqrt(<span class="num">2.0</span> / input_dim)
+        self.B = np.zeros((output_dim, <span class="num">1</span>))</code></pre>
+    </section>
+
+    <!-- Section 3: Numerical Stability -->
+    <section class="section-card">
+      <h2 class="section-title"><span class="index">03.</span> Fused Softmax &amp; Numerical Stability</h2>
+      <p>
+        Direct exponentiation $e^{z_i}$ overflows IEEE 754 64-bit floating point numbers when $z_i > 709$. To prevent <code>NaN</code>s, we employ the mathematically identical <strong>log-sum-exp shift invariance</strong> by subtracting the maximum logit:
+      </p>
+      <div class="math-block">
+        $$\hat{z}_c = z_c - \max_{k} z_k \implies \frac{e^{\hat{z}_c}}{\sum_k e^{\hat{z}_k}} = \frac{e^{z_c - \max z}}{\sum_k e^{z_k - \max z}} = \frac{e^{z_c}}{\sum_k e^{z_k}}$$
+      </div>
+      <p>
+        Similarly, in categorical cross-entropy, predicted probabilities are clipped to $\epsilon = 10^{-15}$ to eliminate $\ln(0) = -\infty$:
+      </p>
+      <div class="math-block">
+        $$\mathcal{L} = -\frac{1}{m} \sum_{i=1}^m \sum_{c=0}^9 y_{c}^{(i)} \ln\left(\text{clip}(\hat{y}_{c}^{(i)}, \, 10^{-15}, \, 1 - 10^{-15})\right)$$
+      </div>
+    </section>
+
+    <!-- Section 4: Calculus Derivation of Backpropagation -->
+    <section class="section-card">
+      <h2 class="section-title"><span class="index">04.</span> Multivariable Backpropagation Proof</h2>
+      <p>
+        Backpropagation applies the multivariable chain rule backwards from the loss function through each parameter tensor.
+      </p>
+
+      <p><strong>Step A: Fused Softmax + Cross-Entropy Gradient</strong></p>
+      <p>
+        Let $\hat{y}_c = \frac{e^{z_c}}{\sum_k e^{z_k}}$ and $\mathcal{L} = -\sum_k y_k \ln \hat{y}_k$. Differentiating with respect to pre-activation logit $z_i$:
+      </p>
+      <div class="math-block">
+        $$\frac{\partial \mathcal{L}}{\partial z_i} = -\sum_k \frac{y_k}{\hat{y}_k} \frac{\partial \hat{y}_k}{\partial z_i}$$
+      </div>
+      <p>
+        The Jacobian of the softmax function is:
+      </p>
+      <div class="math-block">
+        $$\frac{\partial \hat{y}_k}{\partial z_i} = \begin{cases} \hat{y}_i (1 - \hat{y}_i) & \text{if } k = i \\ -\hat{y}_k \hat{y}_i & \text{if } k \neq i \end{cases}$$
+      </div>
+      <p>
+        Substituting into the summation:
+      </p>
+      <div class="math-block">
+        $$\frac{\partial \mathcal{L}}{\partial z_i} = -\frac{y_i}{\hat{y}_i} \hat{y}_i (1 - \hat{y}_i) - \sum_{k \neq i} \frac{y_k}{\hat{y}_k} (-\hat{y}_k \hat{y}_i) = -y_i + y_i \hat{y}_i + \hat{y}_i \sum_{k \neq i} y_k$$
+      </div>
+      <p>
+        Because one-hot encoding implies $\sum_k y_k = y_i + \sum_{k \neq i} y_k = 1$:
+      </p>
+      <div class="math-block">
+        $$\frac{\partial \mathcal{L}}{\partial z_i} = \hat{y}_i \left(y_i + \sum_{k \neq i} y_k\right) - y_i = \hat{y}_i (1) - y_i = \mathbf{\hat{y}_i - y_i}$$
+      </div>
+      <p>
+        In matrix form across batch $m$: $\mathbf{dZ^{[3]} = \hat{Y} - Y}$.
+      </p>
+
+      <p><strong>Step B: Dense Layer Parameter Gradients</strong></p>
+      <p>
+        Given $dZ^{[l]} = \frac{\partial \mathcal{L}}{\partial Z^{[l]}}$ and $Z^{[l]} = W^{[l]} A^{[l-1]} + b^{[l]}$:
+      </p>
+      <div class="math-block">
+        $$dW^{[l]} = \frac{1}{m} dZ^{[l]} (A^{[l-1]})^T, \quad db^{[l]} = \frac{1}{m} \sum_{\text{columns}} dZ^{[l]}, \quad dA^{[l-1]} = (W^{[l]})^T dZ^{[l]}$$
+      </div>
+
+      <p><strong>Step C: ReLU Activation Gradient</strong></p>
+      <p>
+        Because $\frac{d}{dz} \max(0, z) = \mathbb{I}_{z > 0}$, the error propagates via the elementwise Hadamard product:
+      </p>
+      <div class="math-block">
+        $$dZ^{[l-1]} = dA^{[l-1]} \odot \mathbf{1}_{Z^{[l-1]} > 0}$$
+      </div>
+    </section>
+
+    <!-- Section 5: Real-Time Preprocessing -->
+    <section class="section-card">
+      <h2 class="section-title"><span class="index">05.</span> Canvas-to-Tensor Preprocessing Pipeline</h2>
+      <p>
+        The interactive HTML5 canvas is standard $280 \times 280$ with a pure black background ($0$) and antialiased white brush strokes ($255$). The preprocessing pipeline transforms drawn strokes directly into tensor format without unnecessary heuristics:
+      </p>
+      <ul style="margin-left: 1.5rem; color: #cccccc; display: flex; flex-direction: column; gap: 0.5rem;">
+        <li>
+          <strong>Grayscale Conversion:</strong> Ensures single-channel luminance format where background is $0$ and strokes are positive.
+        </li>
+        <li>
+          <strong>MNIST Normalization &amp; Centering:</strong> Crops to the drawn bounding box, scales to fit within a $20 \times 20$ box preserving aspect ratio, and aligns the center of mass to $(14, 14)$ on a $28 \times 28$ grid.
+        </li>
+        <li>
+          <strong>Flattening &amp; Normalization:</strong> Maps pixel intensities $[0, 255] \to [0.0, 1.0]$ and flattens into column vector $\mathbf{x} \in \mathbb{R}^{784 \times 1}$.
+        </li>
+      </ul>
+      <p>
+        Because all operations are pure NumPy matrix multiplications on CPU, inference completes in <strong>~0.10 milliseconds</strong> with high real-time responsiveness.
+      </p>
+    </section>
+  </div>
+
+  <footer>
+    <div>Neural Engine NumPy &bull; Strictly pure NumPy and Python standard library</div>
+  </footer>
+
+</body>
+</html>
