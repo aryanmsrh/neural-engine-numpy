@@ -8,7 +8,7 @@ A deep learning framework built entirely from first principles using pure Python
 ## Resources
 
 - **Walkthrough:** [YouTube Video](https://youtu.be/KnZg2GKFDcQ)
-- **Calculus Derivations:** Reference `docs/NEURAL ENGINE.pdf` in this repository for the full backpropagation and optimization proofs.
+- **Calculus Derivations:** Reference [`docs/NEURAL ENGINE.pdf`](docs/NEURAL%20ENGINE.pdf) in this repository for the full backpropagation and optimization proofs.
 
 ## Project Structure
 
@@ -62,6 +62,8 @@ python web/train.py
 ```bash
 python web/app.py
 ```
+
+Open `http://localhost:5000` in your browser.
 
 **Custom Implementation:**
 
