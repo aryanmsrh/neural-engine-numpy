@@ -53,4 +53,5 @@ def predict():
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run()
+    port = int(sys.argv[sys.argv.index("-p") + 1]) if "-p" in sys.argv else None
+    app.run(port=port)
