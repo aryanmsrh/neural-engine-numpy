@@ -1,7 +1,7 @@
 {
-  "test_accuracy": 97.26,
-  "loss": 0.0632,
-  "epochs_trained": 10,
+  "test_accuracy": 97.27,
+  "loss": 0.02,
+  "epochs_trained": 5,
   "parameters": 109386,
   "topology": "784 -> 128 -> 64 -> 10",
   "status": "online"
