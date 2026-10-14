@@ -1,0 +1,11 @@
+{
+  "test_accuracy": 96.97,
+  "loss": 0.0763,
+  "final_loss": 0.0763,
+  "epochs": 5,
+  "epochs_trained": 5,
+  "training_duration_sec": 43.8595,
+  "parameters": 109386,
+  "topology": "784 -> 128 -> 64 -> 10",
+  "status": "trained"
+}

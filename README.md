@@ -25,7 +25,6 @@ neural-engine-numpy/
 │   └── main.py        # 10-epoch training and evaluation script
 ├── web/               # Interactive web demo for handwritten digit recognition
 │   ├── app.py         # Flask web server
-│   ├── train.py       # Training pipeline & streaming engine
 │   ├── inference.py   # Pure NumPy inference engine
 │   ├── preprocess.py  # Canvas image preprocessor
 │   └── templates/     # UI templates (index.html, architecture.html)
@@ -97,7 +96,7 @@ python scripts/main.py
 Train the network and persist weights to `weights/model_weights.npz` and metrics to `weights/model_stats.json`:
 
 ```bash
-python web/train.py
+python scripts/main.py
 ```
 
 **Custom Implementation:**

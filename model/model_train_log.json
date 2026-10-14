@@ -1,0 +1,124 @@
+{
+  "start": {
+    "type": "start",
+    "total_epochs": 1,
+    "total_batches": 12,
+    "train_samples": 48000,
+    "test_samples": 12000,
+    "time": 1791931555.6526868
+  },
+  "epochs": [
+    {
+      "type": "epoch",
+      "epoch": 1,
+      "test_accuracy": 68.5,
+      "avg_loss": 1.9240819318910765,
+      "time": 1791931557.4147224
+    }
+  ],
+  "steps": [
+    {
+      "type": "step",
+      "step": 1,
+      "batch": 1,
+      "loss": 2.371847874051335,
+      "batch_accuracy": 9.9853515625,
+      "time": 1791931555.8299277
+    },
+    {
+      "type": "step",
+      "step": 2,
+      "batch": 2,
+      "loss": 2.264405219517978,
+      "batch_accuracy": 13.1103515625,
+      "time": 1791931555.9210832
+    },
+    {
+      "type": "step",
+      "step": 3,
+      "batch": 3,
+      "loss": 2.1767357792648694,
+      "batch_accuracy": 20.99609375,
+      "time": 1791931556.0204613
+    },
+    {
+      "type": "step",
+      "step": 4,
+      "batch": 4,
+      "loss": 2.09914142808985,
+      "batch_accuracy": 29.7119140625,
+      "time": 1791931556.1542966
+    },
+    {
+      "type": "step",
+      "step": 5,
+      "batch": 5,
+      "loss": 2.028023331755011,
+      "batch_accuracy": 37.3779296875,
+      "time": 1791931556.3100545
+    },
+    {
+      "type": "step",
+      "step": 6,
+      "batch": 6,
+      "loss": 1.9508911894184053,
+      "batch_accuracy": 44.62890625,
+      "time": 1791931556.494671
+    },
+    {
+      "type": "step",
+      "step": 7,
+      "batch": 7,
+      "loss": 1.887217773074124,
+      "batch_accuracy": 48.5107421875,
+      "time": 1791931556.7238224
+    },
+    {
+      "type": "step",
+      "step": 8,
+      "batch": 8,
+      "loss": 1.8084170804354784,
+      "batch_accuracy": 54.6142578125,
+      "time": 1791931556.9259737
+    },
+    {
+      "type": "step",
+      "step": 9,
+      "batch": 9,
+      "loss": 1.7450990350387836,
+      "batch_accuracy": 57.8369140625,
+      "time": 1791931557.0678704
+    },
+    {
+      "type": "step",
+      "step": 10,
+      "batch": 10,
+      "loss": 1.665155783583716,
+      "batch_accuracy": 59.6923828125,
+      "time": 1791931557.1860917
+    },
+    {
+      "type": "step",
+      "step": 11,
+      "batch": 11,
+      "loss": 1.5855423967229245,
+      "batch_accuracy": 64.2333984375,
+      "time": 1791931557.2786012
+    },
+    {
+      "type": "step",
+      "step": 12,
+      "batch": 12,
+      "loss": 1.5065062917404386,
+      "batch_accuracy": 65.79483695652173,
+      "time": 1791931557.366705
+    }
+  ],
+  "end": {
+    "type": "end",
+    "final_accuracy": 68.5,
+    "total_epochs": 1,
+    "final_loss": 1.9240819318910765,
+    "time": 1791931557.414729
+  }
+}

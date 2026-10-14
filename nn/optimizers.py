@@ -1,15 +1,12 @@
 class Optimizer:
-    def step(self): raise NotImplementedError
+    def step(self, layers): raise NotImplementedError
 
-class SGD(Optimizer): # stochastic gradient descent
-    def __init__(self, layers, lr):
-        self.layers = layers # trainable layers (excludes loss layer)
-        self.lr = lr # learning rate hyperparameter
+class SGD(Optimizer):
+    def __init__(self, lr=0.1):
+        self.lr = lr
 
-    def step(self):
-        for layer in self.layers:
-            if hasattr(layer, 'W'): # update layers with learnable parameters (W, B)
-                layer.W -= self.lr * layer.dW # update weights
-                layer.B -= self.lr * layer.dB # update biases
-
-# optimizer module complete
+    def step(self, hidden_layers):
+        for hidden_layer in hidden_layers:
+            if hasattr(hidden_layer, 'W'):
+                hidden_layer.W -= self.lr * hidden_layer.dW
+                hidden_layer.B -= self.lr * hidden_layer.dB

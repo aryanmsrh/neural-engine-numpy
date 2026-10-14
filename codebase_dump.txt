@@ -1,0 +1,1117 @@
+
+=== FILE: nn/layers.py ===
+import numpy as np
+from .utils import softmax
+
+
+class Layer:
+    def forward(self, *args): raise NotImplementedError
+    def backward(self, *args): raise NotImplementedError
+
+
+class Dense(Layer):
+    def __init__(self, input_dim, output_dim):
+        self.W = np.random.randn(output_dim, input_dim) * np.sqrt(2.0 / input_dim) # he init
+        self.B = np.zeros((output_dim, 1))
+
+        # stored parameter gradients and cache for backprop
+        self.dW = None
+        self.dB = None
+        self.A_prev = None # previous layer activations
+        self.Z = None # current layer pre-activations
+
+    def forward(self, A_prev):
+        self.A_prev = A_prev
+        self.Z = np.dot(self.W, self.A_prev) + self.B
+        return self.Z
+
+    def backward(self, dZ): # takes error term backpropagated from subsequent layer
+        m = dZ.shape[1] # number of samples
+        
+        self.dW = (1/m) * np.dot(dZ, self.A_prev.T) # derived formula for dW
+        self.dB = (1/m) * np.sum(dZ, axis=1, keepdims=True) # sum horizontally to get (n, 1) dims
+
+        dA_prev = np.dot(self.W.T, dZ) # pass error upward to previous hidden layer (dA^[1] in derivation)
+
+        return dA_prev
+    
+
+class ReLU(Layer):
+    def __init__(self):
+        self.Z = None
+    
+    def forward(self, Z):
+        self.Z = Z
+        return np.maximum(0, Z)
+
+    def backward(self, dA):
+        return dA * (self.Z > 0) # multiply incoming dA with relu derivative (hadamard product)
+
+    
+class SoftmaxCrossEntropy(Layer):
+    def __init__(self):
+        self.A = None
+        self.Y = None
+
+    def forward(self, Z, Y):
+        self.Y = Y
+        self.A = softmax(Z, axis=0)
+
+        m = Y.shape[1] # number of samples
+        eps = 1e-15 # clip probabilities to prevent log(0)
+        self.A = np.clip(self.A, eps, 1.0 - eps)
+        loss = -1/m * np.sum(Y * np.log(self.A)) # categorical cross entropy loss
+        return loss
+    
+    def backward(self):
+        return self.A - self.Y # derived gradient of fused softmax + cross-entropy loss
+    
+# layer module complete
+# note: he init keeps variance close to 1. if variance > 1, weights blow up to nans; if < 1, weights collapse to zero (vanishing gradients). we use he init for relu since non-symmetric relu cuts variance in half.
+
+=== FILE: nn/utils.py ===
+import numpy as np
+import pandas as pd
+
+
+def softmax(Z, axis=0):
+    shift = Z - np.max(Z, axis=axis, keepdims=True)
+    return np.exp(shift) / np.sum(np.exp(shift), axis=axis, keepdims=True)
+
+
+def one_hot(y, classes=10):
+    Y = np.zeros((classes, y.shape[0]))
+    Y[y, np.arange(y.shape[0])] = 1
+    return Y
+
+
+def accuracy(probs, labels):
+    if labels.ndim > 1:
+        labels = np.argmax(labels, axis=0)
+    return np.mean(np.argmax(probs, axis=0) == labels) * 100
+
+
+def load_mnist(data_path="data/data.csv"):
+    df = pd.read_csv(data_path)
+    X = df.drop("label", axis=1).values / 255.0
+    Y = df["label"].values
+
+    m = X.shape[0]
+    perm = np.random.permutation(m)
+    split = int(m * 0.8)
+
+    X_train = X[perm[:split]].T
+    X_test = X[perm[split:]].T
+    Y_train = one_hot(Y[perm[:split]])
+    Y_test = Y[perm[split:]]
+
+    return X_train, Y_train, X_test, Y_test
+
+
+from .layers import Dense, ReLU, SoftmaxCrossEntropy
+from .optimizers import SGD
+from .models import Sequential
+
+
+def build_model():
+    return Sequential(
+        layers=[
+            Dense(784, 128),
+            ReLU(),
+            Dense(128, 64),
+            ReLU(),
+            Dense(64, 10),
+            SoftmaxCrossEntropy()
+        ],
+        optimizer=SGD,
+        learning_rate=0.1
+    )
+
+=== FILE: nn/optimizers.py ===
+class Optimizer:
+    def step(self): raise NotImplementedError
+
+class SGD(Optimizer): # stochastic gradient descent
+    def __init__(self, layers, lr):
+        self.layers = layers # trainable layers (excludes loss layer)
+        self.lr = lr # learning rate hyperparameter
+
+    def step(self):
+        for layer in self.layers:
+            if hasattr(layer, 'W'): # update layers with learnable parameters (W, B)
+                layer.W -= self.lr * layer.dW # update weights
+                layer.B -= self.lr * layer.dB # update biases
+
+# optimizer module complete
+
+=== FILE: nn/__init__.py ===
+from .utils import softmax, one_hot, accuracy, load_mnist, build_model
+from .layers import Dense, ReLU, SoftmaxCrossEntropy
+from .optimizers import SGD
+from .models import Sequential
+=== FILE: nn/models.py ===
+import json
+import numpy as np
+from .utils import softmax, accuracy
+
+
+class Model:
+    def forward(self, X): raise NotImplementedError
+    def predict(self, X): raise NotImplementedError
+
+class Sequential(Model):
+    def __init__(self, layers, optimizer, learning_rate):
+        self.layers = layers[:-1]
+        self.loss_layer = layers[-1]
+        self.optimizer = optimizer(self.layers, learning_rate)
+
+    def forward(self, X):
+        out = X
+        for layer in self.layers:
+            out = layer.forward(out)
+        return out
+
+    def predict(self, X):
+        return softmax(self.forward(X))
+
+    def stream(self, X_train, Y_train, X_test, Y_test, epochs, batch_size=64):
+        m = X_train.shape[1]
+        total_batches = int(np.ceil(m / batch_size))
+
+        yield {
+            "type": "init",
+            "total_epochs": epochs,
+            "total_batches": total_batches,
+            "train_samples": X_train.shape[1],
+            "test_samples": X_test.shape[1]
+        }
+
+        step = 0
+        test_acc, avg_loss = 0.0, 0.0
+
+        for epoch in range(epochs):
+            perm = np.random.permutation(m)
+            X_shuffled = X_train[:, perm]
+            Y_shuffled = Y_train[:, perm]
+            epoch_loss = 0.0
+
+            for b in range(0, m, batch_size):
+                X_batch = X_shuffled[:, b:b+batch_size]
+                Y_batch = Y_shuffled[:, b:b+batch_size]
+                batch_num = (b // batch_size) + 1
+
+                out = self.forward(X_batch)
+                loss = self.loss_layer.forward(out, Y_batch)
+                epoch_loss += loss
+
+                grad = self.loss_layer.backward()
+
+                for layer in reversed(self.layers):
+                    grad = layer.backward(grad)
+
+                self.optimizer.step()
+                step += 1
+
+                batch_acc = accuracy(self.loss_layer.A, Y_batch)
+
+                yield {
+                    "type": "batch_complete",
+                    "step": step,
+                    "batch": batch_num,
+                    "loss": float(loss),
+                    "batch_accuracy": float(batch_acc)
+                }
+
+            test_acc = float(accuracy(self.predict(X_test), Y_test))
+            avg_loss = float(epoch_loss / total_batches)
+
+            yield {
+                "type": "epoch_complete",
+                "epoch": epoch + 1,
+                "test_accuracy": test_acc,
+                "avg_loss": avg_loss
+            }
+
+        yield {
+            "type": "finished",
+            "final_accuracy": test_acc,
+            "total_epochs": epochs,
+            "final_loss": avg_loss
+        }
+
+    def fit(self, X_train, Y_train, X_test, Y_test, epochs, batch_size=64):
+        for event in self.stream(X_train, Y_train, X_test, Y_test, epochs, batch_size):
+            if event["type"] == "epoch_complete":
+                print(f"epoch {event['epoch']}/{epochs} | loss: {event['avg_loss']:.4f} | test acc: {event['test_accuracy']:.2f}%")
+
+    def save_weights(self, path="weights/model_weights.npz"):
+        weights = {}
+        for i, l in enumerate(self.layers):
+            if hasattr(l, "W"):
+                weights[f"W_{i}"] = l.W
+                weights[f"B_{i}"] = l.B
+        np.savez_compressed(path, **weights)
+
+    def load_weights(self, path="weights/model_weights.npz"):
+        data = np.load(path)
+        for i, l in enumerate(self.layers):
+            if hasattr(l, "W"):
+                l.W = data[f"W_{i}"]
+                l.B = data[f"B_{i}"]
+        print(f"loaded weights from {path}")
+
+    def save_stats(self, accuracy, loss, epochs, path="weights/model_stats.json"):
+        dense = [l for l in self.layers if hasattr(l, "W")]
+        params = sum(l.W.size + l.B.size for l in dense)
+        dims = [str(l.W.shape[1]) for l in dense] + [str(dense[-1].W.shape[0])]
+        stats = {
+            "test_accuracy": accuracy,
+            "loss": loss,
+            "epochs_trained": epochs,
+            "parameters": params,
+            "topology": " -> ".join(dims),
+            "status": "online"
+        }
+        with open(path, "w") as f:
+            json.dump(stats, f, indent=2)
+
+=== FILE: scripts/main.py ===
+import sys
+
+sys.path.extend([".", ".."])
+
+from nn.utils import load_mnist, build_model, accuracy
+
+print("LOADING MNIST")
+X_train, Y_train, X_test, Y_test = load_mnist("data/data.csv")
+
+mlp = build_model()
+mlp.fit(X_train, Y_train, X_test, Y_test, epochs=10, batch_size=64)
+
+test_acc = accuracy(mlp.predict(X_test), Y_test)
+print(f"\nTEST ACCURACY: {test_acc:.2f}%\n")
+
+=== FILE: web/preprocess.py ===
+import io
+import base64
+import numpy as np
+from PIL import Image
+
+def process_canvas_image(img):
+    gray = img.convert("L")
+    bbox = gray.getbbox() # bounding box of drawn strokes
+    if not bbox:
+        return np.zeros((784, 1)), ""
+
+    # crop and fit into 20x20 box preserving aspect ratio
+    cropped = gray.crop(bbox)
+    w, h = cropped.size
+    ratio = 20.0 / max(w, h)
+    new_w, new_h = max(1, int(round(w * ratio))), max(1, int(round(h * ratio)))
+    resized = cropped.resize((new_w, new_h), Image.Resampling.BILINEAR)
+
+    # paste onto 28x28 canvas centered
+    canvas = Image.new("L", (28, 28), 0)
+    canvas.paste(resized, ((28 - new_w) // 2, (28 - new_h) // 2))
+
+    # center of mass shift to match mnist distribution
+    arr = np.array(canvas, dtype=np.float64)
+    total = np.sum(arr)
+    if total > 0:
+        y, x = np.indices((28, 28))
+        shift_x = int(round(14.0 - np.sum(x * arr) / total))
+        shift_y = int(round(14.0 - np.sum(y * arr) / total))
+        arr = np.roll(arr, (shift_y, shift_x), axis=(0, 1))
+
+    # 140x140 nearest-neighbor preview for the ui
+    preview = Image.fromarray(arr.astype(np.uint8)).resize((140, 140), Image.Resampling.NEAREST)
+    buf = io.BytesIO()
+    preview.save(buf, format="PNG")
+    b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    return (arr / 255.0).reshape(784, 1), b64
+
+def decode_base64_image(data_uri):
+    return Image.open(io.BytesIO(base64.b64decode(data_uri.split(",")[-1])))
+
+=== FILE: web/app.py ===
+import sys
+import json
+from flask import Flask, request, jsonify, render_template, Response
+
+sys.path.extend([".", "..", "web"]) # grab local modules
+
+from preprocess import process_canvas_image, decode_base64_image
+from inference import DigitRecognizer
+from nn.utils import load_mnist, build_model
+
+app = Flask(__name__, template_folder="templates")
+recognizer = DigitRecognizer() # loads weights on startup
+
+@app.route("/")
+def index():
+    with open("weights/model_stats.json") as f:
+        stats = json.load(f)
+    return render_template("index.html", stats=stats)
+
+# sse streaming endpoint for live retraining
+@app.route("/train")
+def train_stream():
+    epochs = int(request.args.get("epochs", 10))
+    lr = float(request.args.get("lr", 0.1))
+
+    def generate():
+        X_train, Y_train, X_test, Y_test = load_mnist("data/data.csv")
+        mlp = build_model()
+        mlp.optimizer.lr = lr
+
+        for event in mlp.stream(X_train, Y_train, X_test, Y_test, epochs):
+            if event["type"] == "finished":
+                mlp.save_weights("weights/model_weights.npz")
+                mlp.save_stats(event["final_accuracy"], event["final_loss"], epochs)
+                recognizer.load_weights("weights/model_weights.npz")
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    img = decode_base64_image(request.json["image"])
+    x_vector, preview_b64 = process_canvas_image(img) # prep 28x28 centered vector
+    result = recognizer.predict(x_vector)
+    result["preview"] = preview_b64
+    return jsonify(result)
+
+if __name__ == "__main__":
+    port = int(sys.argv[sys.argv.index("-p") + 1]) if "-p" in sys.argv else None
+    app.run(port=port)
+
+=== FILE: web/static/css/style.css ===
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/static/fonts/JetBrainsMono.woff2') format('woff2');
+}
+
+:root {
+  --bg: #030303;
+  --card: #0a0a0a;
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #f5f5f5;
+  --dim: #888888;
+  --green: #22c55e;
+  --amber: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; }
+a { color: inherit; text-decoration: none; }
+
+/* Shared Layout Primitives */
+.wrap { max-width: 980px; margin: 0 auto; width: 100%; padding: 0 1rem; }
+.flex { display: flex; align-items: center; gap: 0.5rem; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.container { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 980px; margin: 1.5rem auto; width: 100%; padding: 0 1rem; }
+@media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+
+/* Shared Components */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.card-head { display: flex; justify-content: space-between; align-items: center; }
+.card-title { font-size: 0.8rem; color: var(--text); font-weight: 600; }
+.badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border: 1px solid var(--border); border-radius: 9999px; font-size: 0.7rem; color: var(--dim); background: #000; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+.phase-badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase; background: #1a1a1a; color: var(--dim); }
+.phase-forward { color: var(--green); background: rgba(34, 197, 94, 0.1); }
+.btn { background: #fff; color: #000; border: none; border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
+.bar-track { background: rgba(255, 255, 255, 0.06); height: 8px; border-radius: 4px; overflow: hidden; }
+.bar-value { height: 100%; width: 0%; background: rgba(255, 255, 255, 0.3); border-radius: 4px; transition: width 0.15s; }
+.bar-value.top-pick { background: var(--green); }
+
+/* Dedicated Canvas Styling */
+#drawCanvas { width: 280px; height: 280px; background: #000; cursor: crosshair; touch-action: none; display: block; }
+#graphCanvas { width: 100%; display: block; background: #030303; }
+
+/* Navbar */
+.nav-wrapper { position: sticky; top: 1rem; z-index: 100; padding: 0 1rem; display: flex; justify-content: center; }
+nav.floating-pill { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 980px; background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 9999px; padding: 0.4rem 1rem; }
+.brand { font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
+.brand-tag { font-size: 0.65rem; color: var(--dim); border: 1px solid var(--border); padding: 0.1rem 0.4rem; border-radius: 4px; }
+.nav-links { display: flex; gap: 1rem; }
+.nav-link { color: var(--dim); font-size: 0.8rem; }
+.nav-link:hover, .nav-link.active { color: var(--text); }
+.nav-status { display: flex; gap: 0.5rem; }
+
+/* Stats Bar */
+.stats-wrapper { max-width: 980px; margin: 1.5rem auto 0; padding: 0 1rem; width: 100%; }
+.stats-bar { display: flex; align-items: center; gap: 0.75rem; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.75rem; flex-wrap: wrap; }
+.stat-inline { display: flex; gap: 0.35rem; align-items: center; }
+.stat-lbl, .stat-dim { color: var(--dim); }
+.stat-val { color: var(--text); font-weight: 600; }
+.stat-val.highlight { color: var(--green); }
+.stat-sep { color: rgba(255, 255, 255, 0.15); }
+.btn-retrain { margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--dim); border-radius: 4px; padding: 0.25rem 0.6rem; font-size: 0.7rem; cursor: pointer; }
+.btn-retrain:hover, .btn-retrain.active { color: #fff; border-color: #fff; }
+
+/* Canvas Pane & Predictions */
+.canvas-pane { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+.canvas-wrapper { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; line-height: 0; }
+.action-row { display: flex; gap: 0.5rem; align-items: center; width: 100%; }
+.toggle-label { font-size: 0.7rem; color: var(--dim); margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
+.prediction-box { display: flex; justify-content: space-between; align-items: center; background: #000; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
+.pred-hero { display: flex; align-items: center; gap: 1rem; }
+.pred-num { font-size: 3rem; font-weight: 800; line-height: 1; color: var(--green); }
+.pred-meta { display: flex; flex-direction: column; gap: 0.2rem; }
+.pred-meta .label { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; }
+.pred-meta .conf { font-size: 1.1rem; font-weight: 700; }
+.pred-vision { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.vision-thumbnail { width: 48px; height: 48px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: #000; }
+.vision-thumbnail img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.vision-caption { font-size: 0.6rem; color: var(--dim); }
+.bars-container { display: flex; flex-direction: column; gap: 0.4rem; }
+.prob-row { display: grid; grid-template-columns: 14px 1fr 45px; align-items: center; gap: 0.6rem; font-size: 0.72rem; }
+.digit-idx, .prob-val { color: var(--dim); }
+.prob-val { font-size: 0.7rem; text-align: right; }
+.presets-row { display: flex; flex-direction: column; gap: 0.4rem; }
+.presets-label { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; }
+.preset-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.chip { background: transparent; border: 1px solid var(--border); color: var(--dim); border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.75rem; cursor: pointer; }
+.chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+
+/* Studio & Telemetry */
+.studio-wrapper { max-width: 980px; margin: 1rem auto 0; padding: 0 1rem; width: 100%; }
+.studio-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.studio-controls { display: flex; gap: 1rem; align-items: center; padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.ctrl-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--dim); }
+.ctrl-input { background: #000; border: 1px solid var(--border); color: var(--text); padding: 0.25rem 0.4rem; border-radius: 4px; font-size: 0.75rem; }
+.train-graph-box { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.train-col-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; }
+.canvas-container { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #030303; }
+.train-footer { padding: 0.8rem 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; border-top: 1px solid var(--border); }
+.prog-bar-track { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; overflow: hidden; }
+.prog-bar-fill { height: 100%; width: 0%; background: var(--green); transition: width 0.1s; }
+.telemetry-row { display: flex; gap: 1.25rem; font-size: 0.72rem; color: var(--dim); flex-wrap: wrap; }
+
+/* Video & Footer */
+.video-section { max-width: 980px; margin: 1.5rem auto; padding: 0 1rem; width: 100%; }
+.video-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.video-card .card-head { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.video-link { font-size: 0.7rem; color: var(--dim); text-decoration: underline; }
+.video-container { position: relative; padding-bottom: 56.25%; height: 0; }
+.video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+footer { margin-top: auto; border-top: 1px solid var(--border); background: #050505; padding: 2rem 1rem; font-size: 0.72rem; color: var(--dim); }
+.footer-inner { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+.footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+.footer-section-title { font-size: 0.7rem; text-transform: uppercase; color: var(--text); margin-bottom: 0.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; }
+.footer-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+.footer-list code { background: rgba(255, 255, 255, 0.06); padding: 1px 4px; border-radius: 3px; color: #ccc; }
+.footer-bottom { border-top: 1px solid var(--border); padding-top: 0.8rem; display: flex; justify-content: space-between; font-size: 0.68rem; }
+
+=== FILE: web/static/js/train.js ===
+const studioWrapper = document.getElementById("studioWrapper");
+const studioStatus = document.getElementById("studioStatus");
+const btnToggleRetrain = document.getElementById("btnToggleRetrain");
+const btnStartTrain = document.getElementById("btnStartTrain");
+const btnStopTrain = document.getElementById("btnStopTrain");
+const inpEpochs = document.getElementById("inpEpochs");
+const inpLR = document.getElementById("inpLR");
+
+const trainProgFill = document.getElementById("trainProgFill");
+const telEpoch = document.getElementById("telEpoch");
+const telBatch = document.getElementById("telBatch");
+const telLoss = document.getElementById("telLoss");
+const telBatchAcc = document.getElementById("telBatchAcc");
+const telTestAcc = document.getElementById("telTestAcc");
+const graphStatsReadout = document.getElementById("graphStatsReadout");
+
+const statAccuracy = document.getElementById("statAccuracy");
+const statLoss = document.getElementById("statLoss");
+const statEpochs = document.getElementById("statEpochs");
+
+const graphCanvas = document.getElementById("graphCanvas");
+const gctx = graphCanvas.getContext("2d");
+
+let trainEventSource = null;
+let isPanelOpen = false;
+let lossHistory = [];
+let accHistory = [];
+
+function toggleRetrainPanel() {
+  isPanelOpen = !isPanelOpen;
+  studioWrapper.style.display = isPanelOpen ? "block" : "none";
+  btnToggleRetrain.classList.toggle("active", isPanelOpen);
+  if (isPanelOpen) {
+    renderGraphs();
+    studioWrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else if (trainEventSource) {
+    stopLiveTraining();
+  }
+}
+
+function renderGraphs() {
+  const W = graphCanvas.width, H = graphCanvas.height;
+  gctx.fillStyle = "#030303";
+  gctx.fillRect(0, 0, W, H);
+  const N = lossHistory.length;
+  if (N < 2) return;
+
+  const maxLoss = Math.max(...lossHistory, 1.0);
+  gctx.strokeStyle = "#f59e0b";
+  gctx.lineWidth = 1.5;
+  gctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * W;
+    const y = (1 - lossHistory[i] / maxLoss) * (H - 10) + 5;
+    i === 0 ? gctx.moveTo(x, y) : gctx.lineTo(x, y);
+  }
+  gctx.stroke();
+
+  gctx.strokeStyle = "#22c55e";
+  gctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * W;
+    const y = (1 - accHistory[i] / 100) * (H - 10) + 5;
+    i === 0 ? gctx.moveTo(x, y) : gctx.lineTo(x, y);
+  }
+  gctx.stroke();
+}
+
+function startLiveTraining() {
+  const epochs = parseInt(inpEpochs.value) || 10;
+  const lr = parseFloat(inpLR.value) || 0.10;
+
+  btnStartTrain.disabled = true;
+  btnStopTrain.disabled = false;
+  studioStatus.className = "phase-badge phase-forward";
+  studioStatus.textContent = "training live...";
+
+  lossHistory = [];
+  accHistory = [];
+  renderGraphs();
+
+  let stepCounter = 0;
+  let totalEpochs = epochs;
+  let totalBatches = 0;
+  let totalSteps = 0;
+
+  trainEventSource = new EventSource(`/train?epochs=${epochs}&lr=${lr}`);
+
+  trainEventSource.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+
+    if (data.type === "init") {
+      totalEpochs = data.total_epochs;
+      totalBatches = data.total_batches;
+      totalSteps = totalEpochs * totalBatches;
+      telEpoch.textContent = `Epoch: 1/${totalEpochs}`;
+      telBatch.textContent = `Batch: 1/${totalBatches}`;
+    } else if (data.type === "batch_complete") {
+      stepCounter = data.step;
+      lossHistory.push(data.loss);
+      accHistory.push(data.batch_accuracy);
+
+      const pct = Math.min(100, (stepCounter / totalSteps) * 100);
+      trainProgFill.style.width = pct + "%";
+      telBatch.textContent = `Batch: ${data.batch}/${totalBatches}`;
+      telLoss.textContent = `Loss: ${data.loss.toFixed(4)}`;
+      telBatchAcc.textContent = `Batch Acc: ${data.batch_accuracy.toFixed(1)}%`;
+      if (graphStatsReadout) graphStatsReadout.textContent = `Loss: ${data.loss.toFixed(4)} | Acc: ${data.batch_accuracy.toFixed(1)}%`;
+
+      renderGraphs();
+    } else if (data.type === "epoch_complete") {
+      telTestAcc.textContent = `Test Acc: ${data.test_accuracy.toFixed(2)}%`;
+      if (data.epoch < totalEpochs) telEpoch.textContent = `Epoch: ${data.epoch + 1}/${totalEpochs}`;
+      renderGraphs();
+    } else if (data.type === "finished") {
+      stopLiveTraining();
+      studioStatus.className = "phase-badge phase-forward";
+      studioStatus.textContent = "completed";
+      trainProgFill.style.width = "100%";
+
+      statAccuracy.textContent = data.final_accuracy.toFixed(2) + "%";
+      statLoss.textContent = data.final_loss.toFixed(4);
+      statEpochs.textContent = totalEpochs;
+    }
+  };
+
+  trainEventSource.onerror = () => stopLiveTraining();
+}
+
+function stopLiveTraining() {
+  if (trainEventSource) {
+    trainEventSource.close();
+    trainEventSource = null;
+  }
+  btnStartTrain.disabled = false;
+  btnStopTrain.disabled = true;
+  if (studioStatus.textContent === "training live...") {
+    studioStatus.textContent = "stopped";
+    studioStatus.className = "phase-badge phase-idle";
+  }
+}
+
+=== FILE: web/static/js/predict.js ===
+// -------------------------------------------------------------
+// Predict & Softmax Probability Display
+// -------------------------------------------------------------
+
+const topDigit = document.getElementById("topDigit");
+const topConfidence = document.getElementById("topConfidence");
+const timeDetail = document.getElementById("timeDetail");
+const latencyBadge = document.getElementById("latencyBadge");
+const modelVisionImg = document.getElementById("modelVisionImg");
+const probContainer = document.getElementById("probBars");
+
+// Generate 0-9 probability bars
+let barsHtml = "";
+for (let i = 0; i < 10; i++) {
+  barsHtml += `
+    <div class="prob-row">
+      <div class="digit-idx">${i}</div>
+      <div class="bar-track"><div class="bar-value" id="bar-${i}"></div></div>
+      <div class="prob-val" id="pct-${i}">0.0%</div>
+    </div>
+  `;
+}
+probContainer.innerHTML = barsHtml;
+
+function updateResults(data) {
+  topDigit.textContent = data.prediction;
+  topConfidence.textContent = (data.confidence * 100).toFixed(1) + "%";
+  timeDetail.innerHTML = `&tau;<sub>fwd</sub>: ${data.inference_time_ms} ms`;
+  latencyBadge.querySelector("span").textContent = `fwd: ${data.inference_time_ms}ms`;
+
+  if (data.preview) modelVisionImg.src = data.preview;
+
+  for (let i = 0; i < 10; i++) {
+    const pct = (data.probabilities[i] * 100).toFixed(1) + "%";
+    const bar = document.getElementById(`bar-${i}`);
+    const pctEl = document.getElementById(`pct-${i}`);
+    bar.style.width = pct;
+    pctEl.textContent = pct;
+
+    const isTop = (i === data.prediction);
+    bar.classList.toggle("top-pick", isTop);
+    pctEl.style.color = isTop ? "#ffffff" : "var(--dim)";
+    pctEl.style.fontWeight = isTop ? "600" : "400";
+  }
+}
+
+async function predictDrawnCanvas() {
+  const canvas = document.getElementById("drawCanvas");
+  const dataUri = canvas.toDataURL("image/png");
+  const res = await fetch("/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: dataUri })
+  });
+  const data = await res.json();
+  updateResults(data);
+}
+
+=== FILE: web/static/js/canvas.js ===
+// -------------------------------------------------------------
+// Interactive Drawing Canvas & Digit Presets
+// -------------------------------------------------------------
+
+const drawCanvas = document.getElementById("drawCanvas");
+const dctx = drawCanvas.getContext("2d");
+const chkLiveDraw = document.getElementById("chkLiveDraw");
+
+let isDrawing = false;
+let drawTimeout = null;
+
+function clearCanvas() {
+  dctx.fillStyle = "#000000";
+  dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+}
+clearCanvas();
+
+dctx.strokeStyle = "#FFFFFF";
+dctx.lineWidth = 19;
+dctx.lineCap = "round";
+dctx.lineJoin = "round";
+
+function getCoords(e) {
+  const rect = drawCanvas.getBoundingClientRect();
+  const scaleX = drawCanvas.width / rect.width;
+  const scaleY = drawCanvas.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  isDrawing = true;
+  const { x, y } = getCoords(e);
+  dctx.beginPath();
+  dctx.moveTo(x, y);
+}
+
+function doDraw(e) {
+  if (!isDrawing) return;
+  e.preventDefault();
+  const { x, y } = getCoords(e);
+  dctx.lineTo(x, y);
+  dctx.stroke();
+
+  if (chkLiveDraw.checked) {
+    clearTimeout(drawTimeout);
+    drawTimeout = setTimeout(predictDrawnCanvas, 100);
+  }
+}
+
+function stopDraw() {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (chkLiveDraw.checked) predictDrawnCanvas();
+}
+
+drawCanvas.addEventListener("mousedown", startDraw);
+drawCanvas.addEventListener("mousemove", doDraw);
+window.addEventListener("mouseup", stopDraw);
+drawCanvas.addEventListener("touchstart", startDraw, { passive: false });
+drawCanvas.addEventListener("touchmove", doDraw, { passive: false });
+window.addEventListener("touchend", stopDraw);
+
+function drawPreset(digit) {
+  clearCanvas();
+  dctx.save();
+  dctx.font = "bold 200px 'JetBrains Mono', monospace";
+  dctx.fillStyle = "#FFFFFF";
+  dctx.textAlign = "center";
+  dctx.textBaseline = "middle";
+  dctx.fillText(digit, drawCanvas.width / 2, drawCanvas.height / 2 + 10);
+  dctx.restore();
+  predictDrawnCanvas();
+}
+
+// Render digit 5 on load
+window.addEventListener("DOMContentLoaded", () => drawPreset(5));
+
+=== FILE: web/inference.py ===
+import sys
+import time
+import numpy as np
+
+sys.path.extend([".", ".."])
+
+from nn.utils import build_model
+
+
+class DigitRecognizer:
+    def __init__(self, weights_path="weights/model_weights.npz"):
+        self.model = build_model()
+        self.load_weights(weights_path)
+
+    def load_weights(self, path):
+        self.model.load_weights(path)
+
+    def predict(self, x_vector):
+        if x_vector.ndim == 1:
+            x_vector = x_vector.reshape(-1, 1)
+
+        t0 = time.perf_counter()
+        probs = self.model.predict(x_vector)
+        ms = (time.perf_counter() - t0) * 1000.0
+
+        pred = int(np.argmax(probs, axis=0)[0])
+        return {
+            "prediction": pred,
+            "confidence": float(probs[pred, 0]),
+            "probabilities": [float(p) for p in probs[:, 0]],
+            "inference_time_ms": round(ms, 3)
+        }
+
+=== FILE: web/templates/base.html ===
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}neural-engine // numpy inference{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/assets/favicon.svg">
+
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Floating Pill Navbar -->
+  <div class="nav-wrapper">
+    <nav class="floating-pill">
+      <a href="/" class="brand">
+        <span>[0]</span>
+        <span>neural-engine</span>
+        <span class="brand-tag">numpy-core</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Inference</a>
+        <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" class="nav-link">Video &nearr;</a>
+      </div>
+
+      <div class="nav-status">
+        <div class="badge">
+          <span class="status-dot"></span>
+          <span>weights: loaded</span>
+        </div>
+        <div class="badge" id="latencyBadge">
+          <span>fwd: --ms</span>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-section-title">Topology</div>
+          <ul class="footer-list">
+            <li>784 &rarr; Dense(128) &rarr; ReLU</li>
+            <li>128 &rarr; Dense(64) &rarr; ReLU</li>
+            <li>64 &rarr; Dense(10) &rarr; Softmax</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Parameters</div>
+          <ul class="footer-list">
+            <li>W1: (128, 784) | b1: (128, 1)</li>
+            <li>W2: (64, 128) | b2: (64, 1)</li>
+            <li>W3: (10, 64) | b3: (10, 1)</li>
+            <li>Total: 109,386 params</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Runtime &amp; Spec</div>
+          <ul class="footer-list">
+            <li>Optimizer: SGD (&alpha; = 0.10, B = 64)</li>
+            <li>Init: He Normal &radic;(2 / d_in)</li>
+            <li>Stability: Max-logit shift + 1e-15 eps</li>
+            <li>Runtime: Pure NumPy Core</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>Neural Engine NumPy &bull; Built from first principles</div>
+        <div>
+          <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" style="color: var(--dim); text-decoration: underline;">Watch YouTube Walkthrough &nearr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+
+=== FILE: web/templates/index.html ===
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Model Accuracy Stats Bar -->
+<div class="stats-wrapper">
+  <div class="stats-bar">
+    <div class="stat-inline">
+      <span class="stat-lbl">accuracy:</span>
+      <span class="stat-val highlight" id="statAccuracy">{{ "%.2f"|format(stats.test_accuracy) if stats and stats.test_accuracy else "97.23" }}%</span>
+    </div>
+    <span class="stat-sep">/</span>
+    <div class="stat-inline">
+      <span class="stat-lbl">loss:</span>
+      <span class="stat-val" id="statLoss">{{ "%.4f"|format(stats.loss) if stats and stats.loss else "0.0307" }}</span>
+    </div>
+    <span class="stat-sep">/</span>
+    <div class="stat-inline">
+      <span class="stat-lbl">epochs:</span>
+      <span class="stat-val" id="statEpochs">{{ stats.epochs_trained if stats and stats.epochs_trained else 10 }}</span>
+    </div>
+    <span class="stat-sep">/</span>
+    <div class="stat-inline">
+      <span class="stat-lbl">arch:</span>
+      <span class="stat-dim">{{ stats.topology if stats and stats.topology else "784 -> 128 -> 64 -> 10" }}</span>
+    </div>
+    <span class="stat-sep">/</span>
+    <div class="stat-inline">
+      <span class="stat-lbl">params:</span>
+      <span class="stat-dim">{{ "{:,}".format(stats.parameters) if stats and stats.parameters else "109,386" }}</span>
+    </div>
+    <button class="btn btn-retrain" id="btnToggleRetrain" onclick="toggleRetrainPanel()">
+      re-train model live
+    </button>
+  </div>
+</div>
+
+<!-- Live Training Studio Panel (Collapsible) -->
+<div class="studio-wrapper" id="studioWrapper" style="display: none;">
+  <div class="studio-card">
+    <div class="card-head" style="padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); background: #060606;">
+      <div class="card-title">
+        <span>// live training studio &bull; forward &amp; backward passes</span>
+      </div>
+      <div style="display: flex; gap: 0.6rem; align-items: center;">
+        <span class="phase-badge phase-idle" id="studioStatus">idle</span>
+        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;" onclick="toggleRetrainPanel()">close</button>
+      </div>
+    </div>
+
+    <div class="studio-controls">
+      <div class="ctrl-item">
+        <label for="inpEpochs">Epochs:</label>
+        <input type="number" id="inpEpochs" class="ctrl-input" value="10" min="1" max="100" style="width: 65px;">
+      </div>
+      <div class="ctrl-item">
+        <label for="inpLR">Learning Rate (&alpha;):</label>
+        <input type="number" id="inpLR" class="ctrl-input" value="0.10" step="0.01" style="width: 70px;">
+      </div>
+      <div class="ctrl-item">
+        <label>Mini-Batch:</label>
+        <input type="text" class="ctrl-input" value="64" disabled style="width: 45px; opacity: 0.6;">
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+        <button class="btn" id="btnStartTrain" onclick="startLiveTraining()">start training</button>
+        <button class="btn btn-outline" id="btnStopTrain" onclick="stopLiveTraining()" disabled>stop</button>
+      </div>
+    </div>
+
+    <!-- Live Loss & Accuracy Graphs -->
+    <div class="train-graph-box">
+      <div class="train-col-head">
+        <span>Live Training Curves</span>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <span style="font-size: 0.65rem; color: #f59e0b;">&bull; Mini-Batch Loss</span>
+          <span style="font-size: 0.65rem; color: var(--accent-green);">&bull; Batch Accuracy</span>
+          <span style="font-size: 0.65rem; color: #38bdf8;">&bull; Test Accuracy</span>
+          <span style="font-size: 0.65rem; color: var(--dim);" id="graphStatsReadout">Loss: -- | Acc: --%</span>
+        </div>
+      </div>
+      <div class="canvas-container">
+        <canvas id="graphCanvas" width="920" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="train-footer">
+      <div class="prog-bar-track">
+        <div class="prog-bar-fill" id="trainProgFill"></div>
+      </div>
+      <div class="telemetry-row">
+        <span id="telEpoch">Epoch: -/-</span>
+        <span id="telBatch">Batch: -/-</span>
+        <span id="telLoss">Loss: -</span>
+        <span id="telBatchAcc">Batch Acc: -%</span>
+        <span id="telTestAcc">Test Acc: -%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <!-- Left: Drawing Canvas Card -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title"><span>// drawing canvas</span></div>
+      <span style="font-size: 0.65rem; color: var(--dim);">280 &times; 280 &rarr; 28 &times; 28</span>
+    </div>
+
+    <div class="canvas-pane">
+      <div class="canvas-wrapper">
+        <canvas id="drawCanvas" width="280" height="280"></canvas>
+      </div>
+
+      <div class="action-row">
+        <button class="btn" onclick="predictDrawnCanvas()">Predict</button>
+        <button class="btn btn-outline" onclick="clearCanvas()">Clear</button>
+        <label class="toggle-label">
+          <input type="checkbox" id="chkLiveDraw" checked> live-inference
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Prediction & Softmax Distribution -->
+  <div class="card">
+    <div class="card-title" style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+      <span>// inference output</span>
+    </div>
+
+    <!-- Top Result -->
+    <div class="prediction-box">
+      <div class="pred-hero">
+        <div class="pred-num" id="topDigit">-</div>
+        <div class="pred-meta">
+          <span class="label">Classification</span>
+          <span class="conf" id="topConfidence">0.0%</span>
+          <span style="font-size: 0.65rem; color: var(--dim);" id="timeDetail">&tau;<sub>fwd</sub>: -- ms</span>
+        </div>
+      </div>
+
+      <div class="pred-vision">
+        <div class="vision-thumbnail">
+          <img id="modelVisionImg" src="/static/assets/blank28.svg" alt="28x28 input">
+        </div>
+        <span class="vision-caption">28x28 input</span>
+      </div>
+    </div>
+
+    <!-- Softmax Probabilities 0 - 9 -->
+    <div class="bars-container">
+      <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); display: flex; justify-content: space-between;">
+        <span>Distribution &sigma;(z)</span>
+        <span>P(y = k | x)</span>
+      </div>
+
+      <div id="probBars"></div>
+    </div>
+
+    <!-- Presets -->
+    <div class="presets-row">
+      <div class="presets-label"><span>Preset Digit Synthesizer</span></div>
+      <div class="preset-chips">
+        {% for i in range(10) %}<button class="chip" onclick="drawPreset({{ i }})">{{ i }}</button>{% endfor %}
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Video Walkthrough Section -->
+<section class="video-section">
+  <div class="video-card">
+    <div class="card-head">
+      <div class="card-title">
+        <span>// video walkthrough &bull; architecture &amp; first principles</span>
+      </div>
+      <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" class="video-link">
+        Watch on YouTube &nearr;
+      </a>
+    </div>
+    <div class="video-container">
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/KnZg2GKFDcQ"
+        title="Neural Engine NumPy Video Walkthrough"
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/predict.js"></script>
+<script src="/static/js/canvas.js"></script>
+<script src="/static/js/train.js"></script>
+{% endblock %}

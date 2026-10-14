@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}neural-engine // numpy inference{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/assets/favicon.svg">
+
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Floating Pill Navbar -->
+  <div class="nav-wrapper">
+    <nav class="floating-pill">
+      <a href="/" class="brand">
+        <span>[0]</span>
+        <span>neural-engine</span>
+        <span class="brand-tag">numpy-core</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Inference</a>
+        <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" class="nav-link">Video &nearr;</a>
+      </div>
+
+      <div class="nav-status">
+        <div class="badge">
+          <span class="status-dot"></span>
+          <span>weights: loaded</span>
+        </div>
+        <div class="badge" id="latencyBadge">
+          <span>&tau;<sub>fwd</sub>: -- ms</span>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-section-title">Topology</div>
+          <ul class="footer-list">
+            <li>784 &rarr; Dense(128) &rarr; ReLU</li>
+            <li>128 &rarr; Dense(64) &rarr; ReLU</li>
+            <li>64 &rarr; Dense(10) &rarr; Softmax</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Parameters</div>
+          <ul class="footer-list">
+            <li>W1: (128, 784) | b1: (128, 1)</li>
+            <li>W2: (64, 128) | b2: (64, 1)</li>
+            <li>W3: (10, 64) | b3: (10, 1)</li>
+            <li>Total: 109,386 params</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-section-title">Runtime &amp; Spec</div>
+          <ul class="footer-list">
+            <li>Optimizer: SGD (&alpha; = 0.10, B = 64)</li>
+            <li>Init: He Normal &radic;(2 / d_in)</li>
+            <li>Stability: Max-logit shift + 1e-15 eps</li>
+            <li>Runtime: Pure NumPy Core</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>Neural Engine NumPy &bull; Built from first principles</div>
+        <div>
+          <a href="https://youtu.be/KnZg2GKFDcQ" target="_blank" rel="noopener noreferrer" style="color: var(--dim); text-decoration: underline;">Watch YouTube Walkthrough &nearr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

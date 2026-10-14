@@ -1,7 +1,8 @@
 import numpy as np
+from .utils import softmax
 
 
-class Layer():
+class Layer:
     def forward(self, *args): raise NotImplementedError
     def backward(self, *args): raise NotImplementedError
 
@@ -43,8 +44,8 @@ class ReLU(Layer):
 
     def backward(self, dA):
         return dA * (self.Z > 0) # multiply incoming dA with relu derivative (hadamard product)
-    
 
+    
 class SoftmaxCrossEntropy(Layer):
     def __init__(self):
         self.A = None
@@ -52,9 +53,7 @@ class SoftmaxCrossEntropy(Layer):
 
     def forward(self, Z, Y):
         self.Y = Y
-        shift_Z = Z - np.max(Z, axis=0, keepdims=True) # subtract max z per column to prevent overflow
-        # apply softmax
-        self.A = np.exp(shift_Z) / (np.sum(np.exp(shift_Z), axis=0, keepdims=True)) # numpy broadcasting (nL, m) / (1, m)
+        self.A = softmax(Z, axis=0)
 
         m = Y.shape[1] # number of samples
         eps = 1e-15 # clip probabilities to prevent log(0)
