@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
 
-A deep learning framework built entirely from first principles using pure Python and NumPy. No black-box autograd, no PyTorch, no TensorFlow.
+A deep learning framework built entirely from first principles using pure Python and NumPy. No black-box autograd, no PyTorch, no TensorFlow, no scikit-learn.
 
 ## Resources
 
@@ -14,27 +14,31 @@ A deep learning framework built entirely from first principles using pure Python
 
 ```text
 neural-engine-numpy/
-├── data/              # Raw datasets (e.g. data.csv)
+├── data/              # Raw datasets (e.g. data.csv tracked via Git LFS)
 ├── docs/              # Mathematical derivations and calculus notes (NEURAL ENGINE.pdf)
+├── model/             # Persisted weight checkpoints and stats (model_weights.npz, model_stats.json)
 ├── nn/                # Core pure NumPy neural network framework
-│   ├── __init__.py
 │   ├── layers.py      # Dense, ReLU, SoftmaxCrossEntropy
-│   ├── models.py      # Sequential model container
-│   └── optimizers.py  # SGD optimizer
+│   ├── models.py      # Sequential container with stream() and fit()
+│   ├── optimizers.py  # SGD optimizer
+│   └── utils.py       # Numerically stable softmax, one_hot, accuracy, load_mnist
 ├── scripts/           # Training and evaluation entry points
-│   └── main.py        # 10-epoch training and evaluation script
-├── web/               # Interactive web demo for handwritten digit recognition
-│   ├── app.py         # Flask web server
-│   ├── inference.py   # Pure NumPy inference engine
-│   ├── preprocess.py  # Canvas image preprocessor
-│   └── templates/     # UI templates (index.html, architecture.html)
-└── weights/           # Trained weight checkpoints (model_weights.npz)
+│   └── test.py        # CLI training and evaluation script
+└── web/               # Interactive web app for digit drawing & live training
+    ├── app.py         # Flask server with /predict and /train SSE stream
+    ├── preprocess.py  # Drawing canvas 28x28 preprocessor & center-of-mass alignment
+    ├── static/        # Frontend CSS, modular JS (predict.js, canvas.js, train.js), fonts
+    └── templates/     # UI templates (index.html, base.html)
 ```
 
 ## Architecture
 
 MNIST baseline model:
 `Input (784) -> Dense(128) -> ReLU -> Dense(64) -> ReLU -> Dense(10) -> Softmax Cross-Entropy`
+
+- **Weights Init:** He Normal $\mathcal{N}(0, \sqrt{2 / d_{\text{in}}})$
+- **Biases Init:** Zero vectors $(d_{\text{out}}, 1)$
+- **Stability:** Column-wise max-logit subtraction before `exp` in Softmax; probability clipping with $\epsilon = 10^{-15}$ in cross-entropy loss.
 
 ## Quick Start
 
@@ -54,10 +58,10 @@ The dataset (`data/data.csv`) is tracked via [Git LFS](https://git-lfs.com/). If
   ```
 - **Windows:**
   ```powershell
-  winget install GitHub.GitLFS  # or choco install git-lfs (included with Git for Windows)
+  winget install GitHub.GitLFS  # or choco install git-lfs
   ```
 
-Once installed, run the following in the repository root to pull the full dataset rather than just the LFS metadata header pointer:
+Once installed, pull the full dataset:
 
 ```bash
 git lfs install && git lfs pull
@@ -75,50 +79,56 @@ pip install -r requirements.txt
 python web/app.py
 ```
 
-Open the printed URL in your browser. If port `5000` is in use (e.g., AirPlay Receiver on macOS):
+Open the printed URL (`http://127.0.0.1:5000`) in your browser. The web interface features:
+
+- **Interactive Drawing Canvas:** 280×280 interactive canvas with dynamic brush strokes, live MNIST centering, and real-time inference latency $\tau_{\text{fwd}}$.
+- **Live Training Studio:** Real-time streaming training over Server-Sent Events (`/train`) with weight purging, dynamic loss and accuracy curves, and terminal-style verbose stdout logs.
+
+## CLI Usage & Custom Models
+
+**Run CLI Training:**
 
 ```bash
-python web/app.py -p 5001
-```
-
-## Extras
-
-**CLI Training & Evaluation:**
-
-Run the standalone 10-epoch training and evaluation script:
-
-```bash
-python scripts/main.py
-```
-
-**Train & Save Weight Checkpoints:**
-
-Train the network and persist weights to `weights/model_weights.npz` and metrics to `weights/model_stats.json`:
-
-```bash
-python scripts/main.py
+python scripts/test.py
 ```
 
 **Custom Implementation:**
 
 ```python
 import numpy as np
-from nn import Sequential, Dense, ReLU, SoftmaxCrossEntropy, SGD
+from nn.layers import Dense, ReLU, SoftmaxCrossEntropy
+from nn.optimizers import SGD
+from nn.models import Sequential
+from nn.utils import load_mnist
 
+# 1. Load dataset (80/20 train/test split)
+X_train, Y_train, X_test, Y_test = load_mnist("data/data.csv")
+
+# 2. Build model
 model = Sequential(
     layers=[
-        Dense(input_dim=784, output_dim=128),
+        Dense(784, 128),
         ReLU(),
-        Dense(input_dim=128, output_dim=64),
+        Dense(128, 64),
         ReLU(),
-        Dense(input_dim=64, output_dim=10),
+        Dense(64, 10),
         SoftmaxCrossEntropy()
     ],
-    optimizer=SGD,
-    learning_rate=0.1
+    optimizer=SGD(lr=0.1)
 )
 
-model.fit(X_train, Y_train, epochs=10, batch_size=64)
+# 3. Train synchronously (or stream events via model.stream)
+telemetry = model.fit(
+    X_train, Y_train, X_test, Y_test,
+    epochs=10,
+    batch_size=64,
+    verbose=2
+)
+
+# 4. Save checkpoints and inference
+model.save_weights("model/model_weights.npz")
+model.save_stats(telemetry, "model/model_stats.json")
+
 probs = model.predict(X_test)
 ```
 
@@ -128,29 +138,29 @@ _Batch Size: 64 | Learning Rate: 0.1 | Optimizer: SGD_
 
 | Epoch | Training Loss | Training Acc | Test Acc |
 | :---: | :-----------: | :----------: | :------: |
-|   0   |   0.354731    |    92.98%    |    —     |
-|   5   |   0.064004    |    98.65%    |    —     |
-|   9   |   0.033100    |    99.43%    |  97.29%  |
+|   1   |    0.3547     |    92.98%    |  94.12%  |
+|   5   |    0.0640     |    98.65%    |  96.87%  |
+|  10   |    0.0331     |    99.43%    |  97.29%  |
 
 ## To Implement
 
-As pointed out in the [video breakdown](https://youtu.be/KnZg2GKFDcQ), the current architecture suffers from overfitting. The network possesses enough capacity to memorize the training data, leading to a gap between training and test accuracy. To make this engine production-ready, the following upgrades are pending:
+As pointed out in the [video breakdown](https://youtu.be/KnZg2GKFDcQ), the current architecture can be further enhanced with:
 
 **Advanced Optimizers**
 
-- **Adam:** (Adaptive Moment Estimation) The current industry standard for dynamic learning rates.
-- **RMSProp:** (Root Mean Square Propagation) Adapts the learning rate by dividing the gradient by a running average of its recent magnitude. Prevents gradients from exploding or vanishing.
-- **SGD + Momentum:** Adds velocity to the gradient steps to push through local minima and accelerate convergence.
+- **Adam:** (Adaptive Moment Estimation) Dynamic per-parameter learning rates with first and second moment tracking.
+- **RMSProp:** Root Mean Square Propagation to prevent exploding/vanishing gradients.
+- **SGD + Momentum:** Adding velocity vectors to accelerate past saddle points and local minima.
 
 **Regularization**
 
-- **Dropout Layers:** Randomly zeroing out a percentage of neurons during the forward pass to force the network to learn generalized features instead of memorizing specific pixel paths.
-- **Early Stopping:** Halting the training loop the exact epoch test accuracy begins to diverge from training accuracy.
+- **Dropout:** Zeroing out random neuron subsets during training forward passes to reduce co-adaptation.
+- **Early Stopping:** Halting training when validation loss stops improving.
 
 **Alternative Activations**
 
-- **LeakyReLU:** Solves the "dying ReLU" problem by allowing a small, non-zero gradient when pre-activations are negative, keeping neurons alive.
-- **Tanh:** An alternative zero-centered activation function.
+- **LeakyReLU:** Prevents dying ReLU by allowing a small non-zero gradient for negative pre-activations.
+- **Tanh:** Zero-centered hyperbolic tangent activation.
 
 ## License
 
