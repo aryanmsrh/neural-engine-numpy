@@ -1,0 +1,453 @@
+/* -------------------------------------------------------------
+   Studio: Live Training Studio & Telemetry
+   ------------------------------------------------------------- */
+
+#studioWrapper {
+  margin: 1.5rem auto 0;
+}
+.studio-head-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+#btnCloseStudio {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+}
+
+/* Control Button Variants */
+.btn-pause { color: var(--amber); border-color: rgba(245, 158, 11, 0.25); }
+.btn-save { color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.25); }
+.btn-stop { color: #ef4444; border-color: rgba(239, 68, 68, 0.25); }
+
+/* Controls Header */
+.studio-controls {
+  display: flex;
+  gap: 0.5rem 0.85rem;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.ctrl-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.ctrl-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  padding: 0.22rem 0.38rem;
+  border-radius: var(--radius);
+  font-size: 0.72rem;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.ctrl-input:focus { border-color: rgba(255, 255, 255, 0.45); }
+
+/* Low Specificity Sizing Rules (Preserves Mobile Override) */
+input.ctrl-input { width: 60px; }
+select.ctrl-input { width: 100px; }
+
+/* Remove spin buttons from number inputs */
+.ctrl-input::-webkit-outer-spin-button,
+.ctrl-input::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ctrl-input,
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Styled Custom Select Dropdown */
+select.ctrl-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23aaaaaa' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 8px 5px;
+  padding: 0.25rem 1.45rem 0.25rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+  line-height: 1.2;
+  border-radius: var(--radius);
+  color: var(--text);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+select.ctrl-input:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.38);
+}
+select.ctrl-input:focus {
+  background-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+select.ctrl-input option {
+  background: #141419;
+  color: #f5f5f5;
+  padding: 0.4rem;
+}
+.ctrl-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+/* Charts & Plots */
+.train-graph-box {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.train-plots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+}
+.plot-panel { display: flex; flex-direction: column; gap: 0.4rem; }
+.train-col-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0 0.1rem;
+}
+.train-col-lbl.loss-lbl, .train-col-val.loss-val { color: var(--amber); }
+.train-col-lbl.acc-lbl, .train-col-val.acc-val { color: var(--green); }
+.train-col-lbl { font-weight: 600; }
+.train-col-val {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.canvas-container {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+  height: 210px;
+  position: relative;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: none;
+}
+.canvas-container canvas { display: block; width: 100%; height: 100%; }
+
+/* Telemetry & Progress Footer */
+.train-footer {
+  padding: 0.8rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.prog-bar-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.prog-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--green);
+  transition: width 0.1s ease;
+}
+
+.telemetry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.telemetry-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1.15rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--dim);
+}
+.telemetry-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1.15rem;
+  flex-wrap: wrap;
+  font-size: 0.70rem;
+  color: var(--dim);
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.tel-item {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.telemetry-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+.tel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius);
+  color: var(--dim);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tel-btn:hover:not(:disabled) {
+  color: #ffffff;
+}.tel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius);
+  color: var(--dim);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tel-btn:hover:not(:disabled) {
+  color: #ffffff;
+}
+.tel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius);
+  color: var(--dim);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tel-btn:hover:not(:disabled) {
+  color: #ffffff;
+}
+.tel-toggle-btn.active {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Terminal Console */
+.train-console-box {
+  padding: 0.8rem 1.25rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.terminal-stdout {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.70rem;
+  line-height: 1.5;
+  color: #a0a0a5;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: none;
+}
+.term-red { color: #ef4444; font-weight: 600; }
+.term-yellow { color: #f59e0b; }
+.term-dim { color: #666; }
+.term-blue { color: #38bdf8; }
+
+/* Responsive Studio Adaptations */
+@media (max-width: 768px) {
+  #studioWrapper {
+    margin: 1.5rem auto 0;
+  }
+  #studioWrapper .card-head {
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+  #studioWrapper .card-title {
+    font-size: 0.80rem;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 640px) {
+  #studioWrapper { margin: 1rem auto 0; }
+  #studioWrapper .card-head {
+    padding: 0.65rem 0.85rem;
+    gap: 0.45rem;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #studioWrapper .card-title {
+    font-size: 0.76rem;
+    max-width: min(100%, 250px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .studio-controls {
+    padding: 0.65rem 0.85rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem 0.75rem;
+  }
+  .ctrl-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    width: 100%;
+    font-size: 0.70rem;
+  }
+  .ctrl-item label {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ctrl-item input.ctrl-input {
+    width: 58px;
+    max-width: 100%;
+    padding: 0.22rem 0.35rem;
+    font-size: 0.70rem;
+  }
+  .ctrl-item select.ctrl-input {
+    width: 100%;
+    max-width: 105px;
+    padding: 0.22rem 1.25rem 0.22rem 0.35rem;
+    font-size: 0.70rem;
+  }
+  .ctrl-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
+    padding-top: 0.5rem;
+    margin-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .ctrl-actions .btn {
+    width: 100%;
+    padding: 0.42rem 0.2rem;
+    font-size: 0.70rem;
+    justify-content: center;
+  }
+  .train-graph-box {
+    padding: 0.65rem 0.85rem;
+    gap: 0.6rem;
+  }
+  .train-plots-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .canvas-container {
+    height: 175px;
+  }
+  .train-col-head {
+    font-size: 0.78rem;
+  }
+  .train-col-val {
+    font-size: 0.90rem;
+  }
+  .train-console-box {
+    padding: 0.65rem 0.85rem;
+  }
+  .terminal-stdout {
+    max-height: 140px;
+    font-size: 0.68rem;
+    padding: 0.65rem 0.85rem;
+  }
+  .train-footer {
+    padding: 0.65rem 0.85rem;
+    gap: 0.5rem;
+  }
+  .telemetry-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .telemetry-primary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 0.6rem;
+    width: 100%;
+    font-size: 0.70rem;
+  }
+  .telemetry-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    margin-left: 0;
+  }
+  .telemetry-actions .tel-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.35rem 0.5rem;
+  }
+  .telemetry-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 0.6rem;
+    width: 100%;
+    font-size: 0.68rem;
+  }
+  #telSamples {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 380px) {
+  #studioWrapper .card-title {
+    max-width: 160px;
+  }
+  .canvas-container { height: 150px; }
+  .studio-controls {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+  .ctrl-item input.ctrl-input,
+  .ctrl-item select.ctrl-input {
+    max-width: 110px;
+  }
+  .ctrl-actions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.35rem;
+  }
+  .terminal-stdout {
+    max-height: 120px;
+    font-size: 0.64rem;
+  }
+}

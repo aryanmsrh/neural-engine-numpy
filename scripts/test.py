@@ -20,6 +20,4 @@ mlp = Sequential(
     optimizer=SGD(lr=0.1),
 )
 
-telemetry = mlp.fit(X_train, Y_train, X_test, Y_test, epochs=3, batch_size=4096, verbose=2)
-mlp.save_weights()
-mlp.save_stats(telemetry)
+mlp.fit(X_train, Y_train, X_test, Y_test, epochs=5, batch_size=64, verbose=3)

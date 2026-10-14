@@ -4,7 +4,12 @@ import numpy as np
 from PIL import Image
 
 def process_canvas_image(img):
-    gray = img.convert("L")
+    if img.mode in ("RGBA", "LA"):
+        bg = Image.new("RGB", img.size, (0, 0, 0))
+        bg.paste(img, mask=img.split()[-1])
+        gray = bg.convert("L")
+    else:
+        gray = img.convert("L")
     bbox = gray.getbbox() # bounding box of drawn strokes
     if not bbox:
         return np.zeros((784, 1)), ""

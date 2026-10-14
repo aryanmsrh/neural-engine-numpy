@@ -21,14 +21,14 @@ def accuracy(y_pred, y_true):
     return float(np.mean(y_pred == y_true) * 100)
 
 
-def load_mnist(data_path="data/data.csv"):
+def load_mnist(data_path="data/data.csv", sp=0.8):
     df = pd.read_csv(data_path)
     X = df.drop("label", axis=1).values / 255.0
     Y = df["label"].values
 
     m = X.shape[0]
     perm = np.random.permutation(m)
-    split = int(m * 0.8)
+    split = int(m * sp)
 
     X_train = X[perm[:split]].T
     X_test = X[perm[split:]].T

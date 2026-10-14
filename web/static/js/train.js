@@ -1,100 +1,144 @@
-const studioWrapper = document.getElementById("studioWrapper");
-const studioStatus = document.getElementById("studioStatus");
-const btnToggleRetrain = document.getElementById("btnToggleRetrain");
-const btnStartTrain = document.getElementById("btnStartTrain");
-const btnStopTrain = document.getElementById("btnStopTrain");
+// -------------------------------------------------------------
+// Live Training Studio & Telemetry Engine
+// -------------------------------------------------------------
 
-const inpEpochs = document.getElementById("inpEpochs");
-const inpLR = document.getElementById("inpLR");
-const inpBatch = document.getElementById("inpBatch");
-const inpVerbose = document.getElementById("inpVerbose");
+const $ = (id) => document.getElementById(id);
 
-const trainProgFill = document.getElementById("trainProgFill");
-const telEpoch = document.getElementById("telEpoch");
-const telBatch = document.getElementById("telBatch");
-const telLoss = document.getElementById("telLoss");
-const telBatchAcc = document.getElementById("telBatchAcc");
-const telTestAcc = document.getElementById("telTestAcc");
-const telSpeed = document.getElementById("telSpeed");
-const telTime = document.getElementById("telTime");
-const telSamples = document.getElementById("telSamples");
-const trainConsole = document.getElementById("trainConsole");
-
-const lossCanvas = document.getElementById("lossCanvas");
-const accCanvas = document.getElementById("accCanvas");
-const lossHeadVal = document.getElementById("lossHeadVal");
-const accHeadVal = document.getElementById("accHeadVal");
-
-const statAccuracy = document.getElementById("statAccuracy");
-const statLoss = document.getElementById("statLoss");
-const statEpochs = document.getElementById("statEpochs");
+const ui = {
+  studioWrapper: $("studioWrapper"),
+  studioStatus: $("studioStatus"),
+  btnCloseStudio: $("btnCloseStudio"),
+  btnToggleRetrain: $("btnToggleRetrain"),
+  btnStartTrain: $("btnStartTrain"),
+  btnPauseTrain: $("btnPauseTrain"),
+  btnSaveTrain: $("btnSaveTrain"),
+  btnStopTrain: $("btnStopTrain"),
+  inpEpochs: $("inpEpochs"),
+  inpLR: $("inpLR"),
+  inpBatch: $("inpBatch"),
+  inpVerbose: $("inpVerbose"),
+  trainProgFill: $("trainProgFill"),
+  progBarTrack: document.querySelector(".prog-bar-track"),
+  telEpoch: $("telEpoch"),
+  telBatch: $("telBatch"),
+  telLoss: $("telLoss"),
+  telBatchAcc: $("telBatchAcc"),
+  telTestAcc: $("telTestAcc"),
+  telSpeed: $("telSpeed"),
+  telTime: $("telTime"),
+  telSamples: $("telSamples"),
+  trainConsole: $("trainConsole"),
+  lossCanvas: $("lossCanvas"),
+  accCanvas: $("accCanvas"),
+  lossHeadVal: $("lossHeadVal"),
+  accHeadVal: $("accHeadVal"),
+  statAccuracy: $("statAccuracy"),
+  statAccuracyPreview: $("statAccuracyPreview"),
+  statLoss: $("statLoss"),
+  statEpochs: $("statEpochs"),
+  statSteps: $("statSteps"),
+  statDuration: $("statDuration"),
+  footerDuration: $("footerDuration"),
+  statsCollapsible: $("statsCollapsible"),
+  statToggleIcon: $("statToggleIcon"),
+  btnToggleStats: $("btnToggleStats"),
+  telemetryDetails: $("telemetryDetails"),
+  telToggleIcon: $("telToggleIcon"),
+  telToggleText: $("telToggleText"),
+  btnToggleTelemetry: $("btnToggleTelemetry"),
+};
 
 let trainEventSource = null;
 let isPanelOpen = false;
+let isPaused = false;
 let lossHistory = [];
 let accHistory = [];
-let testHistory = [];
-let startTime = 0;
 let totalSteps = 0;
+let completedEpochs = 0;
+let renderRafId = null;
+
+// Reusable Collapsible Panel Helper
+function togglePanel({
+  panel,
+  trigger,
+  icon,
+  textEl,
+  openText,
+  closedText,
+  activeClass = "active",
+}) {
+  if (!panel) return false;
+  const isCurrentlyHidden = panel.classList.contains("is-hidden");
+  panel.classList.toggle("is-hidden", !isCurrentlyHidden);
+  const isOpen = isCurrentlyHidden;
+  if (trigger) trigger.classList.toggle(activeClass, isOpen);
+  if (icon) icon.textContent = isOpen ? "\u25BE" : "\u25B8";
+  if (textEl && openText && closedText) {
+    textEl.textContent = isOpen ? openText : closedText;
+  }
+  return isOpen;
+}
 
 function toggleRetrainPanel() {
-  isPanelOpen = !isPanelOpen;
-  studioWrapper.style.display = isPanelOpen ? "block" : "none";
-  btnToggleRetrain.classList.toggle("active", isPanelOpen);
+  if (ui.btnCloseStudio.disabled) return;
+  isPanelOpen = togglePanel({
+    panel: ui.studioWrapper,
+    trigger: ui.btnToggleRetrain,
+  });
   if (isPanelOpen) {
     requestAnimationFrame(() => {
       renderGraphs();
-      studioWrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      ui.studioWrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   } else if (trainEventSource) {
     stopLiveTraining();
   }
 }
 
-function clearConsole() {
-  if (trainConsole) trainConsole.innerHTML = "";
+function toggleStatsCollapse() {
+  togglePanel({
+    panel: ui.statsCollapsible,
+    trigger: ui.btnToggleStats,
+    icon: ui.statToggleIcon,
+  });
 }
 
-function pad(val, len) {
-  return String(val).padStart(len, " ");
+function toggleTelemetryDetails() {
+  togglePanel({
+    panel: ui.telemetryDetails,
+    trigger: ui.btnToggleTelemetry,
+    icon: ui.telToggleIcon,
+    textEl: ui.telToggleText,
+    openText: "less",
+    closedText: "details",
+  });
 }
 
-function fmtSec(sec) {
-  return sec.toFixed(2).padStart(6, " ") + "S";
-}
+const MAX_CONSOLE_NODES = 120;
+const clearConsole = () => {
+  ui.trainConsole.innerHTML = '<span class="term-dim">// output here</span>\n';
+};
+const pad = (val, len) => String(val).padStart(len, " ");
+const fmtSec = (sec) => sec.toFixed(2).padStart(6, " ") + "S";
 
 function appendConsoleLine(html) {
-  if (!trainConsole) return;
-  trainConsole.insertAdjacentHTML("beforeend", html);
-  trainConsole.scrollTop = trainConsole.scrollHeight;
+  ui.trainConsole.insertAdjacentHTML("beforeend", html);
+  while (ui.trainConsole.childNodes.length > MAX_CONSOLE_NODES) {
+    ui.trainConsole.removeChild(ui.trainConsole.firstChild);
+  }
+  ui.trainConsole.scrollTop = ui.trainConsole.scrollHeight;
 }
 
-// Crisp HiDPI Canvas setup with 2x supersampling floor to eliminate any blurriness
 function prepareCanvas(canvas) {
   const dpr = Math.max(window.devicePixelRatio || 1, 2);
-  const rect = canvas.getBoundingClientRect();
-  const parent = canvas.parentElement;
-  const w = rect.width
-    ? Math.round(rect.width)
-    : parent && parent.clientWidth
-      ? parent.clientWidth
-      : 450;
-  const h = rect.height
-    ? Math.round(rect.height)
-    : parent && parent.clientHeight
-      ? parent.clientHeight
-      : 210;
-
-  const targetWidth = Math.round(w * dpr);
-  const targetHeight = Math.round(h * dpr);
-
-  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const tw = Math.round(w * dpr);
+  const th = Math.round(h * dpr);
+  if (canvas.width !== tw || canvas.height !== th) {
+    canvas.width = tw;
+    canvas.height = th;
   }
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-
   const ctx = canvas.getContext("2d");
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
@@ -103,52 +147,47 @@ function prepareCanvas(canvas) {
   return { ctx, w, h };
 }
 
-function renderLossGraph() {
-  if (!lossCanvas) return;
-  const { ctx, w, h } = prepareCanvas(lossCanvas);
+function drawChart(
+  canvas,
+  history,
+  strokeColor,
+  fillRgba,
+  fmtFn,
+  boundsFn,
+  headEl,
+) {
+  const { ctx, w, h } = prepareCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
 
-  ctx.fillStyle = "#030303";
-  ctx.fillRect(0, 0, w, h);
-
-  const padLeft = 58;
-  const padRight = 18;
-  const padTop = 18;
-  const padBottom = 24;
+  const padLeft = 64,
+    padRight = 18,
+    padTop = 18,
+    padBottom = 24;
   const pw = w - padLeft - padRight;
   const ph = h - padTop - padBottom;
+  const N = history.length;
+  const { floor, ceil } = boundsFn(history);
+  const span = Math.max(ceil - floor, 0.0001);
 
-  const N = lossHistory.length;
-  let floorL = 0.0;
-  let ceilL = 2.5;
-
-  if (N > 0) {
-    const minLoss = Math.min(...lossHistory);
-    const maxLoss = Math.max(...lossHistory);
-    const lossSpan = Math.max(maxLoss - minLoss, 0.15);
-    floorL = Math.max(0, minLoss - lossSpan * 0.08);
-    ceilL = maxLoss + lossSpan * 0.08;
-  }
-
-  // Gridlines & Loss values (rounded to 4 decimal points)
-  ctx.font = "600 11px 'JetBrains Mono', monospace";
-  [0, 0.25, 0.5, 0.75, 1.0].forEach((f) => {
+  // Gridlines & Y-axis labels
+  ctx.font = "600 12.5px 'JetBrains Mono', monospace";
+  for (const f of [0, 0.25, 0.5, 0.75, 1.0]) {
     const y = Math.round(padTop + (1 - f) * ph) + 0.5;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(padLeft, y);
     ctx.lineTo(padLeft + pw, y);
     ctx.stroke();
 
-    const val = floorL + f * (ceilL - floorL);
-    ctx.fillStyle = "#f59e0b";
+    ctx.fillStyle = strokeColor;
     ctx.textAlign = "right";
-    ctx.fillText(val.toFixed(4), padLeft - 7, y + 4);
-  });
+    ctx.fillText(fmtFn(floor + f * span), padLeft - 8, y + 4.5);
+  }
 
   // Step Axis
-  ctx.font = "11px 'JetBrains Mono', monospace";
-  ctx.fillStyle = "#666";
+  ctx.font = "12px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#888";
   ctx.textAlign = "left";
   ctx.fillText("Step 1", padLeft, h - 7);
   ctx.textAlign = "right";
@@ -157,334 +196,417 @@ function renderLossGraph() {
   if (N === 0) return;
 
   const xSpan = Math.max(totalSteps ? totalSteps - 1 : N - 1, 1);
+  const getY = (v) => padTop + (1 - (v - floor) / span) * ph;
+  const outerGlow =
+    strokeColor === "#f59e0b"
+      ? "rgba(245, 158, 11, 0.35)"
+      : "rgba(34, 197, 94, 0.35)";
 
   if (N === 1) {
-    const x = padLeft;
-    const y = padTop + (1 - (lossHistory[0] - floorL) / (ceilL - floorL)) * ph;
-    ctx.fillStyle = "rgba(245, 158, 11, 0.35)";
+    const x = padLeft,
+      y = getY(history[0]);
+    ctx.fillStyle = outerGlow;
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.fillStyle = "#f59e0b";
+    ctx.fillStyle = strokeColor;
     ctx.beginPath();
     ctx.arc(x, y, 3, 0, 2 * Math.PI);
     ctx.fill();
-    if (lossHeadVal) lossHeadVal.textContent = lossHistory[0].toFixed(4);
+    headEl.textContent = fmtFn(history[0]);
     return;
   }
 
-  // Gradient fill under loss
-  const gradLoss = ctx.createLinearGradient(0, padTop, 0, padTop + ph);
-  gradLoss.addColorStop(0, "rgba(245, 158, 11, 0.25)");
-  gradLoss.addColorStop(1, "rgba(245, 158, 11, 0.0)");
+  // Gradient fill under curve
+  const grad = ctx.createLinearGradient(0, padTop, 0, padTop + ph);
+  grad.addColorStop(0, fillRgba);
+  grad.addColorStop(1, "rgba(0, 0, 0, 0)");
 
   ctx.beginPath();
   for (let i = 0; i < N; i++) {
     const x = padLeft + (i / xSpan) * pw;
-    const y = padTop + (1 - (lossHistory[i] - floorL) / (ceilL - floorL)) * ph;
+    const y = getY(history[i]);
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
-  ctx.strokeStyle = "#f59e0b";
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 2.0;
   ctx.stroke();
 
   ctx.lineTo(padLeft + ((N - 1) / xSpan) * pw, padTop + ph);
   ctx.lineTo(padLeft, padTop + ph);
   ctx.closePath();
-  ctx.fillStyle = gradLoss;
+  ctx.fillStyle = grad;
   ctx.fill();
 
   // Active glowing tip
   const lastX = padLeft + ((N - 1) / xSpan) * pw;
-  const lastY =
-    padTop + (1 - (lossHistory[N - 1] - floorL) / (ceilL - floorL)) * ph;
-  ctx.fillStyle = "rgba(245, 158, 11, 0.35)";
+  const lastY = getY(history[N - 1]);
+  ctx.fillStyle = outerGlow;
   ctx.beginPath();
   ctx.arc(lastX, lastY, 6, 0, 2 * Math.PI);
   ctx.fill();
-  ctx.fillStyle = "#f59e0b";
+  ctx.fillStyle = strokeColor;
   ctx.beginPath();
   ctx.arc(lastX, lastY, 3, 0, 2 * Math.PI);
   ctx.fill();
 
-  if (lossHeadVal && N > 0) {
-    lossHeadVal.textContent = lossHistory[N - 1].toFixed(4);
-  }
+  headEl.textContent = fmtFn(history[N - 1]);
 }
 
-function renderAccGraph() {
-  if (!accCanvas) return;
-  const { ctx, w, h } = prepareCanvas(accCanvas);
+function lossBounds(hist) {
+  if (hist.length === 0) return { floor: 0.0, ceil: 2.5 };
+  const minL = Math.min(...hist),
+    maxL = Math.max(...hist);
+  const span = Math.max(maxL - minL, 0.15);
+  return { floor: Math.max(0, minL - span * 0.08), ceil: maxL + span * 0.08 };
+}
 
-  ctx.fillStyle = "#030303";
-  ctx.fillRect(0, 0, w, h);
-
-  const padLeft = 58;
-  const padRight = 18;
-  const padTop = 18;
-  const padBottom = 24;
-  const pw = w - padLeft - padRight;
-  const ph = h - padTop - padBottom;
-
-  const N = accHistory.length;
-  let floorA = 0;
-  let ceilA = 100;
-
-  if (N > 0) {
-    let minAcc = Math.min(...accHistory);
-    let maxAcc = Math.max(...accHistory);
-
-    // Dynamic range scaling: accuracy bounds adapt to training progress
-    floorA = Math.max(0, Math.floor((minAcc - 4) / 5) * 5);
-    ceilA = Math.min(100, Math.ceil((maxAcc + 4) / 5) * 5);
-    if (ceilA - floorA < 20) {
-      ceilA = Math.min(100, floorA + 20);
-      floorA = Math.max(0, ceilA - 20);
-    }
+function accBounds(hist) {
+  if (hist.length === 0) return { floor: 0, ceil: 100 };
+  const minA = Math.min(...hist),
+    maxA = Math.max(...hist);
+  let floor = Math.max(0, Math.floor((minA - 4) / 5) * 5);
+  let ceil = Math.min(100, Math.ceil((maxA + 4) / 5) * 5);
+  if (ceil - floor < 20) {
+    ceil = Math.min(100, floor + 20);
+    floor = Math.max(0, ceil - 20);
   }
-
-  const spanA = Math.max(ceilA - floorA, 10);
-
-  // Gridlines & Accuracy percentage values (rounded to 2 decimal points)
-  ctx.font = "600 11px 'JetBrains Mono', monospace";
-  [0, 0.25, 0.5, 0.75, 1.0].forEach((f) => {
-    const y = Math.round(padTop + (1 - f) * ph) + 0.5;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padLeft, y);
-    ctx.lineTo(padLeft + pw, y);
-    ctx.stroke();
-
-    const val = floorA + f * spanA;
-    ctx.fillStyle = "#22c55e";
-    ctx.textAlign = "right";
-    ctx.fillText(`${val.toFixed(2)}%`, padLeft - 7, y + 4);
-  });
-
-  // Step Axis
-  ctx.font = "11px 'JetBrains Mono', monospace";
-  ctx.fillStyle = "#666";
-  ctx.textAlign = "left";
-  ctx.fillText("Step 1", padLeft, h - 7);
-  ctx.textAlign = "right";
-  ctx.fillText(`Step ${totalSteps || N || 1}`, padLeft + pw, h - 7);
-
-  if (N === 0) return;
-
-  const xSpan = Math.max(totalSteps ? totalSteps - 1 : N - 1, 1);
-
-  if (N === 1) {
-    const x = padLeft;
-    const y = padTop + (1 - (accHistory[0] - floorA) / spanA) * ph;
-    ctx.fillStyle = "rgba(34, 197, 94, 0.35)";
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.fillStyle = "#22c55e";
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, 2 * Math.PI);
-    ctx.fill();
-    if (accHeadVal)
-      accHeadVal.textContent = `${accHistory[0].toFixed(2)}%`;
-    return;
-  }
-
-  // Gradient fill under Batch Accuracy
-  const gradAcc = ctx.createLinearGradient(0, padTop, 0, padTop + ph);
-  gradAcc.addColorStop(0, "rgba(34, 197, 94, 0.22)");
-  gradAcc.addColorStop(1, "rgba(34, 197, 94, 0.0)");
-
-  ctx.beginPath();
-  for (let i = 0; i < N; i++) {
-    const x = padLeft + (i / xSpan) * pw;
-    const y = padTop + (1 - (accHistory[i] - floorA) / spanA) * ph;
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.strokeStyle = "#22c55e";
-  ctx.lineWidth = 2.0;
-  ctx.stroke();
-
-  ctx.lineTo(padLeft + ((N - 1) / xSpan) * pw, padTop + ph);
-  ctx.lineTo(padLeft, padTop + ph);
-  ctx.closePath();
-  ctx.fillStyle = gradAcc;
-  ctx.fill();
-
-  // Active glowing tip for batch accuracy
-  const lastX = padLeft + ((N - 1) / xSpan) * pw;
-  const lastY = padTop + (1 - (accHistory[N - 1] - floorA) / spanA) * ph;
-  ctx.fillStyle = "rgba(34, 197, 94, 0.35)";
-  ctx.beginPath();
-  ctx.arc(lastX, lastY, 6, 0, 2 * Math.PI);
-  ctx.fill();
-  ctx.fillStyle = "#22c55e";
-  ctx.beginPath();
-  ctx.arc(lastX, lastY, 3, 0, 2 * Math.PI);
-  ctx.fill();
-
-  if (accHeadVal && N > 0) {
-    accHeadVal.textContent = accHistory[N - 1].toFixed(2) + "%";
-  }
+  return { floor, ceil };
 }
 
 function renderGraphs() {
-  renderLossGraph();
-  renderAccGraph();
+  drawChart(
+    ui.lossCanvas,
+    lossHistory,
+    "#f59e0b",
+    "rgba(245, 158, 11, 0.25)",
+    (v) => v.toFixed(4),
+    lossBounds,
+    ui.lossHeadVal,
+  );
+  drawChart(
+    ui.accCanvas,
+    accHistory,
+    "#22c55e",
+    "rgba(34, 197, 94, 0.22)",
+    (v) => `${v.toFixed(2)}%`,
+    accBounds,
+    ui.accHeadVal,
+  );
+}
+
+function scheduleRenderGraphs() {
+  if (renderRafId) return;
+  renderRafId = requestAnimationFrame(() => {
+    renderGraphs();
+    renderRafId = null;
+  });
+}
+
+function updateStatsUI(s) {
+  const has = s.epochs > 0;
+  ui.statAccuracy.textContent = ui.statAccuracyPreview.textContent = has
+    ? s.accuracy.toFixed(2) + "%"
+    : "--%";
+  ui.statLoss.textContent = has ? s.loss.toFixed(4) : "--";
+  ui.statEpochs.textContent = has ? s.epochs : "0";
+  ui.statSteps.textContent = has ? s.steps.toLocaleString() : "--";
+  ui.statDuration.textContent = has
+    ? s.training_duration_sec.toFixed(4) + "s"
+    : "--";
+  if (has && ui.footerDuration) {
+    ui.footerDuration.innerHTML = `&tau;<sub>train</sub>: ${s.training_duration_sec.toFixed(4)}s`;
+  }
+}
+
+// Concise Data-Driven Studio UI State Machine
+function syncStudioUI(state) {
+  const canControl = completedEpochs >= 1;
+  const isRunning = state === "running";
+  const isPaused = state === "paused";
+  const isActive = isRunning || isPaused;
+
+  ui.btnStartTrain.disabled = isActive;
+  ui.btnCloseStudio.disabled = isActive;
+  ui.btnCloseStudio.classList.toggle("disabled", isActive);
+
+  ui.btnPauseTrain.disabled = !isActive || !canControl;
+  ui.btnPauseTrain.textContent = isPaused ? "resume" : "pause";
+  ui.btnPauseTrain.title = !isActive
+    ? state === "idle"
+      ? "Pause available after 1st epoch completed"
+      : ""
+    : isPaused
+      ? "Resume live training"
+      : canControl
+        ? "Pause live training"
+        : "Pause available after 1st epoch completed";
+
+  ui.btnStopTrain.disabled = !isActive || !canControl;
+  ui.btnStopTrain.title = !isActive
+    ? state === "idle"
+      ? "Stop available after 1st epoch completed"
+      : ""
+    : canControl
+      ? "Stop live training"
+      : "Stop available after 1st epoch completed";
+
+  const showSave = isPaused && canControl;
+  ui.btnSaveTrain.classList.toggle("is-hidden", !showSave);
+  ui.btnSaveTrain.disabled = !showSave;
+  ui.btnSaveTrain.title = canControl
+    ? `Save epoch ${completedEpochs} checkpoint`
+    : "Save available after 1st epoch completed";
+  ui.btnSaveTrain.textContent = canControl ? "save" : "save (ep \u2265 1)";
+
+  const badgeMap = {
+    idle: ["phase-idle", "idle"],
+    running: ["phase-forward", "training live..."],
+    paused: ["phase-paused", "paused"],
+    completed: ["phase-forward", "completed"],
+    stopped: [
+      "phase-idle",
+      completedEpochs > 0 ? `stopped (saved ep ${completedEpochs})` : "stopped",
+    ],
+  };
+  const [badgeCls, badgeTxt] = badgeMap[state] || badgeMap.idle;
+  ui.studioStatus.className = `phase-badge ${badgeCls}`;
+  ui.studioStatus.textContent = badgeTxt;
+
+  ui.progBarTrack.classList.toggle("is-hidden", !isActive);
+  if (state === "completed") ui.trainProgFill.style.width = "100%";
 }
 
 function startLiveTraining() {
-  const epochs = parseInt(inpEpochs.value) || 10;
-  const lr = parseFloat(inpLR.value) || 0.1;
-  const batchSize = parseInt(inpBatch.value) || 64;
-  const verbose = parseInt(inpVerbose ? inpVerbose.value : 2);
+  const epochs = parseInt(ui.inpEpochs.value) || 10;
+  const lr = parseFloat(ui.inpLR.value) || 0.1;
+  const batchSize = parseInt(ui.inpBatch.value) || 64;
+  const verbose = parseInt(ui.inpVerbose.value);
 
-  btnStartTrain.disabled = true;
-  btnStopTrain.disabled = false;
-  studioStatus.className = "phase-badge phase-forward";
-  studioStatus.textContent = "training live...";
+  completedEpochs = 0;
+  isPaused = false;
+  ui.trainProgFill.style.width = "0%";
+  syncStudioUI("running");
 
-  if (statAccuracy) statAccuracy.textContent = "--%";
-  if (statLoss) statLoss.textContent = "--";
-  if (statEpochs) statEpochs.textContent = "0";
-  if (lossHeadVal) lossHeadVal.textContent = "--";
-  if (accHeadVal) accHeadVal.textContent = "--%";
+  updateStatsUI({
+    accuracy: 0,
+    loss: 0,
+    epochs: 0,
+    steps: 0,
+    training_duration_sec: 0,
+  });
+  ui.lossHeadVal.textContent = "--";
+  ui.accHeadVal.textContent = "--%";
+  ui.telTime.textContent = "Time: 0.0s";
 
   lossHistory = [];
   accHistory = [];
-  testHistory = [];
   renderGraphs();
   clearConsole();
 
-  let stepCounter = 0;
-  let totalEpochs = epochs;
-  let totalBatches = 0;
   totalSteps = 0;
-  startTime = 0;
 
   trainEventSource = new EventSource(
-    `/train?epochs=${epochs}&lr=${lr}&batch_size=${batchSize}`,
+    `/train/start?epochs=${epochs}&lr=${lr}&batch_size=${batchSize}`,
   );
 
   trainEventSource.onmessage = (e) => {
     const data = JSON.parse(e.data);
 
-    if (data.type === "start" || data.type === "init") {
-      startTime = data.time;
-      totalEpochs = data.total_epochs;
-      totalBatches = data.total_batches;
-      totalSteps = totalEpochs * totalBatches;
-
-      telEpoch.textContent = `Epoch: 1/${totalEpochs}`;
-      telBatch.textContent = `Batch: 1/${totalBatches}`;
-      if (telSamples)
-        telSamples.textContent = `${data.train_samples.toLocaleString()} train / ${data.test_samples.toLocaleString()} test`;
+    if (data.type === "start") {
+      totalSteps = data.total_steps;
+      ui.telEpoch.textContent = `Epoch: 1/${data.total_epochs}`;
+      ui.telBatch.textContent = `Batch: 1/${data.total_batches}`;
+      ui.telSamples.textContent = `${data.train_samples.toLocaleString()} train / ${data.test_samples.toLocaleString()} test`;
 
       if (verbose >= 1) {
         appendConsoleLine(
-          `<span class="term-red">[  0.00S] STRT // SMPLS: ${pad(data.train_samples, 6)} // EPOC: ${pad(totalEpochs, 6)} // BTCH: ${pad(batchSize, 6)}</span>\n\n`,
+          `<span class="term-red">[  0.00S] STRT // SMPLS: ${pad(data.train_samples, 6)} // EPOC: ${pad(data.total_epochs, 6)} // BTCH: ${pad(batchSize, 6)}</span>\n\n`,
         );
       }
       if (verbose >= 2) {
         appendConsoleLine(
-          `<span class="term-yellow">    [  0.00S] EPOC ${pad(0, 6)}/${pad(totalEpochs, 6)} | LOSS: ${pad("-", 6)} | TACC: ${pad("-", 6)}%</span>\n`,
+          `<span class="term-yellow">    [  0.00S] EPOC ${pad(0, 6)}/${pad(data.total_epochs, 6)} | LOSS: ${pad("-", 6)} | TACC: ${pad("-", 6)}%</span>\n`,
         );
       }
-    } else if (data.type === "step" || data.type === "batch_complete") {
-      stepCounter = data.step;
+    } else if (data.type === "step") {
       lossHistory.push(data.loss);
-      accHistory.push(data.batch_accuracy);
-
-      const pct = Math.min(100, (stepCounter / totalSteps) * 100);
-      trainProgFill.style.width = pct + "%";
-      telBatch.textContent = `Batch: ${data.batch}/${totalBatches}`;
-      telLoss.textContent = `Loss: ${data.loss.toFixed(4)}`;
-      telBatchAcc.textContent = `Batch Acc: ${data.batch_accuracy.toFixed(2)}%`;
-
-      const elapsed = Math.max(0.01, data.time - startTime);
-      if (telTime) telTime.textContent = `Time: ${elapsed.toFixed(1)}s`;
-      if (telSpeed) {
-        const speed = Math.round((stepCounter * batchSize) / elapsed);
-        telSpeed.textContent = `Speed: ${speed.toLocaleString()} smp/s`;
-      }
+      accHistory.push(data.accuracy);
+      ui.trainProgFill.style.width =
+        Math.min(100, (data.step / data.total_steps) * 100) + "%";
+      ui.telEpoch.textContent = `Epoch: ${data.epoch}/${data.total_epochs}`;
+      ui.telBatch.textContent = `Batch: ${data.batch}/${data.total_batches}`;
+      ui.telLoss.textContent = `Loss: ${data.loss.toFixed(4)}`;
+      ui.telBatchAcc.textContent = `Batch Acc: ${data.accuracy.toFixed(2)}%`;
+      ui.telTime.textContent = `Time: ${data.elapsed_sec.toFixed(1)}s`;
+      ui.telSpeed.textContent = `Speed: ${data.samples_per_sec.toLocaleString()} smp/s`;
 
       if (verbose >= 3) {
         appendConsoleLine(
-          `<span class="term-dim">       [${fmtSec(elapsed)}] STEP ${pad(data.step, 6)} (BTCH ${pad(data.batch, 6)}) | LOSS: ${data.loss.toFixed(4).padStart(6, " ")} | BACC: ${data.batch_accuracy.toFixed(2).padStart(6, " ")}%</span>\n`,
+          `<span class="term-dim">       [${fmtSec(data.elapsed_sec)}] STEP ${pad(data.step, 6)} (BTCH ${pad(data.batch, 6)}) | LOSS: ${data.loss.toFixed(4).padStart(6, " ")} | BACC: ${data.accuracy.toFixed(2).padStart(6, " ")}%</span>\n`,
         );
       }
+      scheduleRenderGraphs();
+    } else if (data.type === "epoch") {
+      completedEpochs = data.epoch;
+      ui.telTestAcc.textContent = `Test Acc: ${data.accuracy.toFixed(2)}%`;
+      ui.telEpoch.textContent = `Epoch: ${data.epoch < data.total_epochs ? data.epoch + 1 : data.epoch}/${data.total_epochs}`;
+      ui.telTime.textContent = `Time: ${data.elapsed_sec.toFixed(1)}s`;
 
-      renderGraphs();
-    } else if (data.type === "epoch" || data.type === "epoch_complete") {
-      telTestAcc.textContent = `Test Acc: ${data.test_accuracy.toFixed(2)}%`;
-      if (data.epoch < totalEpochs)
-        telEpoch.textContent = `Epoch: ${data.epoch + 1}/${totalEpochs}`;
+      syncStudioUI(isPaused ? "paused" : "running");
 
-      testHistory.push({
-        step: stepCounter || data.epoch * totalBatches,
-        acc: data.test_accuracy,
-        avg_loss: data.avg_loss,
-        epoch: data.epoch,
+      updateStatsUI({
+        accuracy: data.accuracy,
+        loss: data.loss,
+        epochs: data.epoch,
+        steps: data.step,
+        training_duration_sec: data.elapsed_sec,
       });
 
-      const elapsed = data.time - startTime;
       if (verbose >= 2) {
         appendConsoleLine(
-          `<span class="term-yellow">    [${fmtSec(elapsed)}] EPOC ${pad(data.epoch, 6)}/${pad(totalEpochs, 6)} | LOSS: ${data.avg_loss.toFixed(4).padStart(6, " ")} | TACC: ${data.test_accuracy.toFixed(2).padStart(6, " ")}%</span>\n`,
+          `<span class="term-yellow">    [${fmtSec(data.elapsed_sec)}] EPOC ${pad(data.epoch, 6)}/${pad(data.total_epochs, 6)} | LOSS: ${data.loss.toFixed(4).padStart(6, " ")} | TACC: ${data.accuracy.toFixed(2).padStart(6, " ")}%</span>\n`,
         );
       }
-
       renderGraphs();
-    } else if (data.type === "end" || data.type === "finished") {
-      stopLiveTraining();
-      studioStatus.className = "phase-badge phase-forward";
-      studioStatus.textContent = "completed";
-      trainProgFill.style.width = "100%";
+    } else if (data.type === "end") {
+      updateStatsUI({
+        accuracy: data.accuracy,
+        loss: data.loss,
+        epochs: data.epoch,
+        steps: data.step,
+        training_duration_sec: data.elapsed_sec,
+      });
+      ui.telTime.textContent = `Time: ${data.elapsed_sec.toFixed(2)}s`;
+      stopLiveTraining(true);
+      syncStudioUI("completed");
 
-      statAccuracy.textContent = data.final_accuracy.toFixed(2) + "%";
-      statLoss.textContent = data.final_loss.toFixed(4);
-      statEpochs.textContent = totalEpochs;
-
-      const elapsed = data.time - startTime;
       if (verbose >= 1) {
         appendConsoleLine(
-          `\n<span class="term-red">[${fmtSec(elapsed)}] OVER // FACC: ${data.final_accuracy.toFixed(2).padStart(6, " ")}% // FLOS: ${data.final_loss.toFixed(4).padStart(6, " ")} // DURN: ${fmtSec(elapsed)}</span>\n`,
+          `\n<span class="term-red">[${fmtSec(data.elapsed_sec)}] OVER // FACC: ${data.accuracy.toFixed(2).padStart(6, " ")}% // FLOS: ${data.loss.toFixed(4).padStart(6, " ")} // DURN: ${fmtSec(data.elapsed_sec)}</span>\n`,
         );
       }
     }
   };
 
-  trainEventSource.onerror = () => stopLiveTraining();
+  trainEventSource.onerror = () => stopLiveTraining(true);
 }
 
-function stopLiveTraining() {
-  if (trainEventSource) {
-    trainEventSource.close();
-    trainEventSource = null;
-  }
-  btnStartTrain.disabled = false;
-  btnStopTrain.disabled = true;
-  if (studioStatus.textContent === "training live...") {
-    studioStatus.textContent = "stopped";
-    studioStatus.className = "phase-badge phase-idle";
+async function handleTrainAction(action, isNaturalEnd = false) {
+  switch (action) {
+    case "pause":
+    case "resume":
+    case "toggle-pause":
+      if (!trainEventSource || completedEpochs < 1) return;
+      if (!isPaused) {
+        try {
+          await fetch("/train/pause", { method: "POST" });
+          isPaused = true;
+          syncStudioUI("paused");
+          appendConsoleLine(
+            '<span class="term-yellow">// live training paused</span>\n',
+          );
+        } catch (e) {}
+      } else {
+        try {
+          await fetch("/train/resume", { method: "POST" });
+          isPaused = false;
+          syncStudioUI("running");
+          appendConsoleLine(
+            '<span class="term-yellow">// live training resumed</span>\n',
+          );
+        } catch (e) {}
+      }
+      break;
+
+    case "save":
+      if (ui.btnSaveTrain.disabled || completedEpochs === 0) return;
+      ui.btnSaveTrain.disabled = true;
+      ui.btnSaveTrain.textContent = "saving...";
+      try {
+        const res = await fetch("/train/save", { method: "POST" });
+        const data = await res.json();
+        ui.btnSaveTrain.textContent = "saved!";
+        if (data && data.stats) {
+          updateStatsUI(data.stats);
+          ui.telTime.textContent = `Time: ${data.stats.training_duration_sec.toFixed(2)}s`;
+        }
+        appendConsoleLine(
+          `<span class="term-blue">[CHECKPOINT] Epoch ${completedEpochs} weights & stats saved to disk</span>\n`,
+        );
+      } catch (err) {
+        ui.btnSaveTrain.textContent = "err";
+      } finally {
+        setTimeout(() => {
+          if (isPaused) {
+            ui.btnSaveTrain.textContent = "save";
+            ui.btnSaveTrain.disabled = false;
+          }
+        }, 1500);
+      }
+      break;
+
+    case "stop":
+      if (!isNaturalEnd && (!trainEventSource || completedEpochs < 1)) return;
+      if (!isNaturalEnd && trainEventSource) {
+        try {
+          const res = await fetch("/train/stop", { method: "POST" });
+          const data = await res.json();
+          if (data && data.stats && data.stats.epochs > 0) {
+            updateStatsUI(data.stats);
+            ui.telTime.textContent = `Time: ${data.stats.training_duration_sec.toFixed(2)}s`;
+          }
+        } catch (e) {}
+      }
+      const wasActive =
+        !isNaturalEnd &&
+        (ui.studioStatus.textContent === "training live..." ||
+          ui.studioStatus.textContent === "paused");
+      if (trainEventSource) {
+        trainEventSource.close();
+        trainEventSource = null;
+      }
+      isPaused = false;
+      if (!isNaturalEnd) {
+        syncStudioUI("stopped");
+        if (wasActive) {
+          appendConsoleLine(
+            `<span class="term-red">// training stopped & epoch ${completedEpochs} checkpoint saved to disk</span>\n`,
+          );
+        }
+      }
+      break;
   }
 }
 
+const togglePauseLiveTraining = () => handleTrainAction("toggle-pause");
+const saveLiveTrainingCheckpoint = () => handleTrainAction("save");
+const stopLiveTraining = (isNaturalEnd = false) =>
+  handleTrainAction("stop", isNaturalEnd);
+
+// Event Listeners & Observers
 window.addEventListener("resize", () => {
   if (isPanelOpen) renderGraphs();
 });
-
 if (window.ResizeObserver) {
   const ro = new window.ResizeObserver(() => {
     if (isPanelOpen) renderGraphs();
   });
-  if (lossCanvas && lossCanvas.parentElement)
-    ro.observe(lossCanvas.parentElement);
-  if (accCanvas && accCanvas.parentElement) ro.observe(accCanvas.parentElement);
+  ro.observe(ui.lossCanvas.parentElement);
+  ro.observe(ui.accCanvas.parentElement);
 }
-
 if (document.fonts) {
   document.fonts.ready.then(() => {
     if (isPanelOpen) renderGraphs();
   });
 }
+
+// Global scope export for HTML bindings
+window.toggleRetrainPanel = toggleRetrainPanel;
+window.toggleStatsCollapse = toggleStatsCollapse;
+window.toggleTelemetryDetails = toggleTelemetryDetails;
+window.startLiveTraining = startLiveTraining;
+window.togglePauseLiveTraining = togglePauseLiveTraining;
+window.saveLiveTrainingCheckpoint = saveLiveTrainingCheckpoint;
+window.stopLiveTraining = stopLiveTraining;
+window.clearConsole = clearConsole;

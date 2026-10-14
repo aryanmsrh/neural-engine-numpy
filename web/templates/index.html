@@ -1,64 +1,116 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %} {% block head %}
+<link rel="stylesheet" href="/static/css/inference.css" />
+<link rel="stylesheet" href="/static/css/studio.css" />
+{% endblock %} {% block content %}
 <!-- Model Accuracy Stats Bar -->
 <div class="stats-wrapper">
   <div class="stats-bar">
-    <div class="stat-inline">
-      <span class="stat-lbl">accuracy:</span>
-      <span class="stat-val highlight" id="statAccuracy"
-        >{{ "%.2f"|format(stats.test_accuracy|float) }}%</span
-      >
+    <div class="stats-main-row">
+      <div class="stats-primary-group">
+        <button
+          type="button"
+          class="btn btn-stat-toggle"
+          id="btnToggleStats"
+          onclick="toggleStatsCollapse()"
+        >
+          <span id="statToggleIcon">&#9656;</span>
+          <span id="statToggleLabel">telemetry</span>
+          <span class="stat-val highlight" id="statAccuracyPreview"
+            >{{ "%.2f"|format(stats.accuracy|float) }}%</span
+          >
+        </button>
+      </div>
+
+      <div class="stats-action-group">
+        <button
+          type="button"
+          class="btn btn-stat-toggle btn-retrain"
+          id="btnToggleRetrain"
+          onclick="toggleRetrainPanel()"
+        >
+          <span class="retrain-dot"></span>
+          <span>re-train (live) </span>
+        </button>
+      </div>
     </div>
-    <span class="stat-sep">/</span>
-    <div class="stat-inline">
-      <span class="stat-lbl">loss:</span>
-      <span class="stat-val" id="statLoss">{{ "%.4f"|format(stats.loss|float) }}</span>
+
+    <!-- Collapsible Stats Details (Collapsed on load) -->
+    <div class="stats-collapsible is-hidden" id="statsCollapsible">
+      <div class="stats-expanded-row">
+        <div class="stat-inline">
+          <span class="stat-lbl">accuracy:</span>
+          <span class="stat-val highlight" id="statAccuracy"
+            >{{ "%.2f"|format(stats.accuracy|float) }}%</span
+          >
+        </div>
+        <span class="stat-sep">/</span>
+        <div class="stat-inline">
+          <span class="stat-lbl">loss:</span>
+          <span class="stat-val" id="statLoss"
+            >{{ "%.4f"|format(stats.loss|float) }}</span
+          >
+        </div>
+        <span class="stat-sep">/</span>
+        <div class="stat-inline">
+          <span class="stat-lbl">epochs:</span>
+          <span class="stat-val" id="statEpochs">{{ stats.epochs }}</span>
+        </div>
+        <span class="stat-sep">/</span>
+        <div class="stat-inline">
+          <span class="stat-lbl">steps:</span>
+          <span class="stat-val" id="statSteps"
+            >{{ "{:,}".format(stats.steps) }}</span
+          >
+        </div>
+      </div>
+
+      <div class="stats-meta-row">
+        <div class="stat-inline">
+          <span class="stat-lbl">arch:</span>
+          <span class="stat-dim" id="statArch"
+            >{{ stats.topology | join(' → ') }}</span
+          >
+        </div>
+        <span class="stat-sep">&bull;</span>
+        <div class="stat-inline">
+          <span class="stat-lbl">params:</span>
+          <span class="stat-dim" id="statParams"
+            >{{ "{:,}".format(stats.parameters|int) }}</span
+          >
+        </div>
+        <span class="stat-sep">&bull;</span>
+        <div class="stat-inline">
+          <span class="stat-lbl">opt:</span>
+          <span class="stat-dim" id="statOptimizer">{{ stats.optimizer }}</span>
+        </div>
+        <span class="stat-sep">&bull;</span>
+        <div class="stat-inline">
+          <span class="stat-lbl"
+            ><span class="stat-tau">&tau;</span><sub>train</sub>:</span
+          >
+          <span class="stat-dim" id="statDuration"
+            >{{ "%.4f"|format(stats.training_duration_sec|float) }}s</span
+          >
+        </div>
+      </div>
     </div>
-    <span class="stat-sep">/</span>
-    <div class="stat-inline">
-      <span class="stat-lbl">epochs:</span>
-      <span class="stat-val" id="statEpochs">{{ stats.epochs_trained }}</span>
-    </div>
-    <span class="stat-sep">/</span>
-    <div class="stat-inline">
-      <span class="stat-lbl">arch:</span>
-      <span class="stat-dim">{{ stats.topology }}</span>
-    </div>
-    <span class="stat-sep">/</span>
-    <div class="stat-inline">
-      <span class="stat-lbl">params:</span>
-      <span class="stat-dim">{{ "{:,}".format(stats.parameters) }}</span>
-    </div>
-    <button
-      class="btn btn-retrain"
-      id="btnToggleRetrain"
-      onclick="toggleRetrainPanel()"
-    >
-      re-train model live
-    </button>
   </div>
 </div>
 
 <!-- Live Training Studio Panel (Collapsible) -->
-<div class="studio-wrapper" id="studioWrapper" style="display: none">
-  <div class="studio-card">
-    <div
-      class="card-head"
-      style="
-        padding: 0.8rem 1.25rem;
-        border-bottom: 1px solid var(--border);
-        background: #060606;
-      "
-    >
+<div class="wrap is-hidden" id="studioWrapper">
+  <div class="card">
+    <div class="card-head">
       <div class="card-title">
         <span
           >// live training studio &bull; forward &amp; backward passes</span
         >
       </div>
-      <div style="display: flex; gap: 0.6rem; align-items: center">
+      <div class="studio-head-actions">
         <span class="phase-badge phase-idle" id="studioStatus">idle</span>
         <button
           class="btn btn-outline"
-          style="padding: 0.2rem 0.5rem; font-size: 0.65rem"
+          id="btnCloseStudio"
           onclick="toggleRetrainPanel()"
         >
           close
@@ -76,44 +128,51 @@
           value="10"
           min="1"
           max="100"
-          style="width: 65px"
         />
       </div>
       <div class="ctrl-item">
-        <label for="inpLR">Learning Rate (&alpha;):</label>
+        <label for="inpLR">LR (&alpha;):</label>
         <input
           type="number"
           id="inpLR"
           class="ctrl-input"
           value="0.10"
           step="0.01"
-          style="width: 70px"
         />
       </div>
       <div class="ctrl-item">
-        <label for="inpBatch">Mini-Batch:</label>
-        <input
-          type="number"
-          id="inpBatch"
-          class="ctrl-input"
-          value="64"
-          style="width: 45px"
-        />
+        <label for="inpBatch">Batch:</label>
+        <input type="number" id="inpBatch" class="ctrl-input" value="64" />
       </div>
       <div class="ctrl-item">
         <label for="inpVerbose">Verbosity:</label>
-        <select id="inpVerbose" class="ctrl-input" style="width: 105px">
+        <select id="inpVerbose" class="ctrl-input">
           <option value="2" selected>2 (Epochs)</option>
           <option value="3">3 (Batches)</option>
           <option value="1">1 (Summary)</option>
         </select>
       </div>
-      <div style="display: flex; gap: 0.5rem; margin-left: auto">
+      <div class="ctrl-actions">
         <button class="btn" id="btnStartTrain" onclick="startLiveTraining()">
-          start training
+          start
         </button>
         <button
-          class="btn btn-outline"
+          class="btn btn-outline btn-pause"
+          id="btnPauseTrain"
+          onclick="togglePauseLiveTraining()"
+          disabled
+        >
+          pause
+        </button>
+        <button
+          class="btn btn-outline btn-save is-hidden"
+          id="btnSaveTrain"
+          onclick="saveLiveTrainingCheckpoint()"
+        >
+          save
+        </button>
+        <button
+          class="btn btn-outline btn-stop"
           id="btnStopTrain"
           onclick="stopLiveTraining()"
           disabled
@@ -129,8 +188,10 @@
         <!-- Loss Plot Panel -->
         <div class="plot-panel">
           <div class="train-col-head">
-            <span style="color: #f59e0b; font-weight: 600">&bull; Loss (&tau;<sub>loss</sub>)</span>
-            <span style="font-size: 0.70rem; color: #f59e0b" id="lossHeadVal">--</span>
+            <span class="train-col-lbl loss-lbl"
+              >&bull; Loss (&tau;<sub>loss</sub>)</span
+            >
+            <span class="train-col-val loss-val" id="lossHeadVal">--</span>
           </div>
           <div class="canvas-container">
             <canvas id="lossCanvas"></canvas>
@@ -140,8 +201,8 @@
         <!-- Accuracy Plot Panel -->
         <div class="plot-panel">
           <div class="train-col-head">
-            <span style="color: var(--accent-green); font-weight: 600">&bull; Accuracy</span>
-            <span style="font-size: 0.70rem; color: var(--accent-green)" id="accHeadVal">--%</span>
+            <span class="train-col-lbl acc-lbl">&bull; Accuracy</span>
+            <span class="train-col-val acc-val" id="accHeadVal">--%</span>
           </div>
           <div class="canvas-container">
             <canvas id="accCanvas"></canvas>
@@ -152,32 +213,48 @@
 
     <!-- Terminal Telemetry Verbose Output -->
     <div class="train-console-box">
-      <div class="train-col-head">
-        <span>// terminal verbose stdout</span>
-        <button
-          class="btn btn-outline"
-          style="padding: 0.1rem 0.4rem; font-size: 0.65rem"
-          onclick="clearConsole()"
-        >
-          clear
-        </button>
-      </div>
-      <pre class="terminal-stdout" id="trainConsole"></pre>
+      <pre class="terminal-stdout" id="trainConsole">
+// verbose output here</pre
+      >
     </div>
 
     <div class="train-footer">
-      <div class="prog-bar-track">
+      <div class="prog-bar-track is-hidden">
         <div class="prog-bar-fill" id="trainProgFill"></div>
       </div>
-      <div class="telemetry-row">
-        <span id="telEpoch">Epoch: -/-</span>
-        <span id="telBatch">Batch: -/-</span>
-        <span id="telLoss">Loss: -</span>
-        <span id="telBatchAcc">Batch Acc: -%</span>
-        <span id="telTestAcc">Test Acc: -%</span>
-        <span id="telSpeed">Speed: -</span>
-        <span id="telTime">Time: 0.0s</span>
-        <span id="telSamples" style="margin-left: auto; color: var(--dim)"></span>
+      <div class="telemetry-header">
+        <div class="telemetry-primary">
+          <span class="tel-item" id="telEpoch">Epoch: -/-</span>
+          <span class="tel-item" id="telBatch">Batch: -/-</span>
+          <span class="tel-item" id="telLoss">Loss: -</span>
+          <span class="tel-item" id="telTestAcc">Test Acc: -%</span>
+        </div>
+        <div class="telemetry-actions">
+          <button
+            type="button"
+            class="tel-btn"
+            id="btnClearConsole"
+            onclick="clearConsole()"
+            title="Clear terminal output"
+          >
+            clear
+          </button>
+          <button
+            type="button"
+            class="tel-btn tel-toggle-btn"
+            id="btnToggleTelemetry"
+            onclick="toggleTelemetryDetails()"
+            title="Toggle extended telemetry details"
+          >
+            <span id="telToggleText">details</span>
+          </button>
+        </div>
+      </div>
+      <div class="telemetry-details is-hidden" id="telemetryDetails">
+        <span class="tel-item" id="telBatchAcc">Batch Acc: -%</span>
+        <span class="tel-item" id="telSpeed">Speed: -</span>
+        <span class="tel-item" id="telTime">Time: 0.0s</span>
+        <span class="tel-item" id="telSamples"></span>
       </div>
     </div>
   </div>
@@ -188,21 +265,24 @@
   <div class="card">
     <div class="card-head">
       <div class="card-title"><span>// drawing canvas</span></div>
-      <span style="font-size: 0.65rem; color: var(--dim)"
-        >280 &times; 280 &rarr; 28 &times; 28</span
-      >
+      <span class="card-subtitle">280 &times; 280 &rarr; 28 &times; 28</span>
     </div>
 
-    <div class="canvas-pane">
+    <div class="card-body">
       <div class="canvas-wrapper">
         <canvas id="drawCanvas" width="280" height="280"></canvas>
       </div>
 
       <div class="action-row">
-        <button class="btn" onclick="predictDrawnCanvas()">Predict</button>
-        <button class="btn btn-outline" onclick="clearCanvas()">Clear</button>
-        <label class="toggle-label">
-          <input type="checkbox" id="chkLiveDraw" checked /> live-inference
+        <div class="btn-group-center">
+          <button class="btn" onclick="predictDrawnCanvas()">predict</button>
+          <button class="btn btn-outline btn-clear" onclick="clearCanvas()">
+            clear
+          </button>
+        </div>
+        <label class="toggle-label" for="chkLiveDraw">
+          <input type="checkbox" id="chkLiveDraw" checked />
+          <span>live-inference</span>
         </label>
       </div>
     </div>
@@ -210,107 +290,67 @@
 
   <!-- Right: Prediction & Softmax Distribution -->
   <div class="card">
-    <div
-      class="card-title"
-      style="border-bottom: 1px solid var(--border); padding-bottom: 0.5rem"
-    >
-      <span>// inference output</span>
+    <div class="card-head">
+      <div class="card-title">
+        <span>// inference output</span>
+      </div>
     </div>
 
-    <!-- Top Result -->
-    <div class="prediction-box">
-      <div class="pred-hero">
-        <div class="pred-num" id="topDigit">-</div>
-        <div class="pred-meta">
+    <div class="card-body">
+      <!-- Top Result -->
+      <div class="prediction-box">
+        <div class="pred-hero">
           <span class="label">Classification</span>
-          <span class="conf" id="topConfidence">0.00%</span>
-          <span style="font-size: 0.65rem; color: var(--dim)" id="timeDetail"
-            >&tau;<sub>fwd</sub>: -- ms</span
+          <div class="pred-hero-content">
+            <div class="pred-num" id="topDigit">-</div>
+            <div class="pred-meta">
+              <span class="conf" id="topConfidence">0.00%</span>
+              <span class="time-detail" id="timeDetail"
+                >&tau;<sub>fwd</sub>: -- ms</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="pred-vision">
+          <span class="label"
+            >Model Vision <span class="vision-dim">(28x28)</span></span
           >
+          <div class="vision-thumbnail">
+            <img
+              id="modelVisionImg"
+              src="/static/assets/blank28.svg"
+              alt="28x28 input"
+            />
+          </div>
         </div>
       </div>
 
-      <div class="pred-vision">
-        <div class="vision-thumbnail">
-          <img
-            id="modelVisionImg"
-            src="/static/assets/blank28.svg"
-            alt="28x28 input"
-          />
+      <!-- Unified Container for Bars & Presets -->
+      <div class="inference-details">
+        <!-- Softmax Probabilities 0 - 9 -->
+        <div class="bars-container">
+          <div class="bars-header">
+            <span>Distribution &sigma;(z)</span>
+            <span>P(y = k | x)</span>
+          </div>
+
+          <div id="probBars"></div>
         </div>
-        <span class="vision-caption">28x28 input</span>
-      </div>
-    </div>
 
-    <!-- Softmax Probabilities 0 - 9 -->
-    <div class="bars-container">
-      <div
-        style="
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: var(--dim);
-          display: flex;
-          justify-content: space-between;
-        "
-      >
-        <span>Distribution &sigma;(z)</span>
-        <span>P(y = k | x)</span>
-      </div>
-
-      <div id="probBars"></div>
-    </div>
-
-    <!-- Presets -->
-    <div class="presets-row">
-      <div class="presets-label"><span>Preset Digit Synthesizer</span></div>
-      <div class="preset-chips">
-        {% for i in range(10) %}
-        <button class="chip" onclick="drawPreset({{ i }})">{{ i }}</button>
-        {% endfor %}
+        <!-- Presets -->
+        <div class="presets-row">
+          <div class="presets-label"><span>Preset Digit Synthesizer</span></div>
+          <div class="preset-chips">
+            {% for i in range(10) %}
+            <button class="chip" onclick="drawPreset({{ i }})">{{ i }}</button>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </main>
-
-<!-- Video Walkthrough Section -->
-<section class="video-section">
-  <div class="video-card">
-    <div class="card-head">
-      <div class="card-title">
-        <span
-          >// video walkthrough &bull; architecture &amp; first principles</span
-        >
-      </div>
-      <a
-        href="https://youtu.be/KnZg2GKFDcQ"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="video-link"
-      >
-        Watch on YouTube &nearr;
-      </a>
-    </div>
-    <div class="video-container">
-      <iframe
-        src="https://www.youtube-nocookie.com/embed/KnZg2GKFDcQ"
-        title="Neural Engine NumPy Video Walkthrough"
-        loading="lazy"
-        allow="
-          accelerometer;
-          autoplay;
-          clipboard-write;
-          encrypted-media;
-          gyroscope;
-          picture-in-picture;
-          web-share;
-        "
-        allowfullscreen
-      >
-      </iframe>
-    </div>
-  </div>
-</section>
 {% endblock %} {% block scripts %}
 <script src="/static/js/predict.js"></script>
 <script src="/static/js/canvas.js"></script>
