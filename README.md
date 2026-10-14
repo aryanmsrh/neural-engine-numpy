@@ -5,6 +5,8 @@
 
 A deep learning framework built entirely from first principles using pure Python and NumPy. No black-box autograd, no PyTorch, no TensorFlow, no scikit-learn.
 
+![Neural Engine Web Interface](thumb.png)
+
 ## Resources
 
 - **Walkthrough:** [YouTube Video](https://youtu.be/KnZg2GKFDcQ)
@@ -24,6 +26,7 @@ neural-engine-numpy/
 │   └── utils.py       # Numerically stable softmax, one_hot, accuracy, load_mnist
 ├── scripts/           # Training and evaluation entry points
 │   └── test.py        # CLI training and evaluation script
+├── thumb.png          # Web interface preview screenshot
 └── web/               # Interactive web app for digit drawing & live training
     ├── app.py         # Flask server with /predict and /train SSE stream
     ├── preprocess.py  # Drawing canvas 28x28 preprocessor & center-of-mass alignment
