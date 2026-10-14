@@ -68,27 +68,6 @@ neural-engine-numpy/
 
 ---
 
-## Mathematical Architecture
-
-### Baseline Model
-$$\text{Input (784)} \xrightarrow{\text{Dense}} \text{Hidden}_1 (128) \xrightarrow{\text{ReLU}} \text{Hidden}_2 (64) \xrightarrow{\text{ReLU}} \text{Output} (10) \xrightarrow{\text{Softmax Cross-Entropy}} \mathcal{L}$$
-
-- **Trainable Parameters:** 109,386 ($W_1: 128 \times 784$, $b_1: 128 \times 1$, $W_2: 64 \times 128$, $b_2: 64 \times 1$, $W_3: 10 \times 64$, $b_3: 10 \times 1$)
-- **Weight Initialization:** He Normal distribution to preserve variance across ReLU layers:
-  $$W \sim \mathcal{N}\left(0, \sqrt{\frac{2}{d_{\text{in}}}}\right), \quad B = \mathbf{0}_{(d_{\text{out}}, 1)}$$
-- **Numerical Stability:**
-  - Softmax max-logit shift: $\mathrm{softmax}(z)_i = \frac{e^{z_i - \max(z)}}{\sum_j e^{z_j - \max(z)}}$ to prevent floating-point overflow.
-  - Cross-entropy probability clipping: $\hat{y} \leftarrow \mathrm{clip}(\hat{y}, 10^{-15}, 1 - 10^{-15})$ to avoid $\log(0)$.
-
-### Layer Formulations
-
-| Layer | Forward Pass | Backward Pass |
-| :--- | :--- | :--- |
-| **Dense** | $Z = W A_{\text{prev}} + B$ | $dW = \frac{1}{m} dZ A_{\text{prev}}^T$<br>$dB = \frac{1}{m} \sum_{i=1}^m dZ^{(i)}$<br>$dA_{\text{prev}} = W^T dZ$ |
-| **ReLU** | $A = \max(0, Z)$ | $dZ = dA \odot \mathbf{1}_{\{Z > 0\}}$ |
-| **Softmax + Cross-Entropy** | $\mathcal{L} = -\frac{1}{m} \sum \left( Y \odot \log(\hat{Y}) \right)$ | $dZ = \hat{Y} - Y$ |
-
----
 
 ## Quick Start
 
