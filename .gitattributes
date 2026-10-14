@@ -1,9 +1,12 @@
 *.csv filter=lfs diff=lfs merge=lfs -text
 
-# Exclude web templates and static assets from GitHub language statistics
-web/templates/* linguist-detectable=false
+# Exclude frontend assets and data from GitHub language statistics
+*.css linguist-detectable=false
+*.js linguist-detectable=false
 *.html linguist-detectable=false
 *.json linguist-detectable=false
+web/static/* linguist-detectable=false
+web/templates/* linguist-detectable=false
 
 # Mark documentation
 docs/* linguist-documentation=true
